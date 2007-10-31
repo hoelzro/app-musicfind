@@ -4,9 +4,9 @@ use strict;
 use warnings;
 
 use File::Find;
-use Switch;
 use Text::Glob qw(glob_to_regex_string);
 
+# Debug the dispatch table
 # MakeMaker
 # POD
 # Add -exec
@@ -16,6 +16,7 @@ use Text::Glob qw(glob_to_regex_string);
 # Put the help section under __POD__
 # Remove line numbers from die
 # Add case insensitivity switch
+# Uncomment loadDecoders and find
 
 my @decoders;
 my @targets; # Dirs to search
@@ -53,172 +54,99 @@ sub processCmdLine
     my $lastAction;
     my %filterActions = ('-channels' => 1, '-tag' => 1);
     my @filters;
+    my $i;
+    my %dispatch = (
+        '-and' => sub {
+            if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
+                push @filters, ['and'];
+            } else {
+                die "Only filter actions can occur on either side of an -and switch";
+            }
+        },
+        '-or' => sub {
+            if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
+                push @filters, ['or'];
+            } else {
+                die "Only filter actions can occur on either side of an -or switch";
+            }
+        },
+        '-not' => sub {
+            if(exists $filterActions{$_[$i + 1]}) {
+                push @filters, ['not'];
+            } else {
+                die "Only filter actions can occur after a -not switch";
+            }
+        },
+        '-rename' => sub {
+            push @actions, ['rename', $_[++$i]];
+        },
+        '-tag' => sub {
+            my @tags = split /,/, $_[++$i];
+
+            my $action = ['check_tag'];
+            foreach my $tag (@tags) {
+                if($tag =~ /(.+)=(.+)/) {
+                    my ($name, $value) = ($1, $2);
+                    unless($value =~ /^\/(.*)\/$/) {
+                        $value = glob_to_regex_string($value);
+                    }
+                    push @$action, $name, $value;
+                } else {
+                    die "Tag matches must be in the format name=value; $tag is invalid";
+                }
+            }
+            push @filters, $action;
+        },
+        '-set-tag' => sub {
+            my @tags = split /,/, $_[++$i];
+
+            my $action = ['set_tag'];
+            foreach my $tag (@tags) {
+                if($tag =~ /(.+)=(.+)/) {
+                    my ($name, $value) = ($1, $2);
+                    push @$action, $name, $value;
+                } else {
+                    die "Tag matches must be in the format name=value; $tag is invalid";
+                }
+            }
+            push @actions, $action;
+        },
+        '-delete-tag' => sub {
+            my @tags = split /,/, $_[++$i];
+            push @actions, ['delete_tag', @tags];
+        },
+        '-channels' => sub {
+            my $num = ++$i;
+            if($num =~ /^\d+$/) {
+                push @filters, ['channels', $num];
+            } else {
+                die "You didn't specify an integer for the number of channels";
+            }
+        },
+        '-print' => sub {
+            if(! defined $_[$i + 1] or $_[$i + 1] =~ /^-/) {
+                push @actions, ['print'];
+            } else {
+                push @actions, ['print', $_[++$i]];
+            }
+        },
+        '-help' => sub {
+            print while(<DATA>);
+            exit(0);
+        }
+    );
 
     while(@_ && $_[0] !~ /^-/) {
         push @targets, split(/,/, $_[0]);
         shift;
     }
 
-    for(my $i = 0; $i < @_; $i++) {
+    for($i = 0; $i < @_; $i++) {
         my $arg = $_[$i];
-        switch($arg) {
-            case '-and' {
-                if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
-                    push @filters, ['and'];
-                } else {
-                    die "Only filter actions can occur on either side of an -and switch";
-                }
-            }
-            case '-or' {
-                if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
-                    push @filters, ['or'];
-                } else {
-                    die "Only filter actions can occur on either side of an -or switch";
-                }
-            }
-            case '-not' {
-                if(exists $filterActions{$_[$i + 1]}) {
-                    push @filters, ['not'];
-                } else {
-                    die "Only filter actions can occur after a -not switch";
-                }
-            }
-            case '-rename' {
-                push @actions, ['rename', $_[++$i]];
-            }
-            case '-tag' {
-                my @tags = split /,/, $_[++$i];
-
-                my $action = ['check_tag'];
-                foreach my $tag (@tags) {
-                    if($tag =~ /(.+)=(.+)/) {
-                        my ($name, $value) = ($1, $2);
-                        unless($value =~ /^\/(.*)\/$/) {
-                            $value = glob_to_regex_string($value);
-                        }
-                        push @$action, $name, $value;
-                    } else {
-                        die "Tag matches must be in the format name=value; $tag is invalid";
-                    }
-                }
-                push @filters, $action;
-            }
-            case '-set-tag' {
-                my @tags = split /,/, $_[++$i];
-
-                my $action = ['set_tag'];
-                foreach my $tag (@tags) {
-                    if($tag =~ /(.+)=(.+)/) {
-                        my ($name, $value) = ($1, $2);
-                        push @$action, $name, $value;
-                    } else {
-                        die "Tag matches must be in the format name=value; $tag is invalid";
-                    }
-                }
-                push @actions, $action;
-            }
-            case '-delete-tag' {
-                my @tags = split /,/, $_[++$i];
-                push @actions, ['delete_tag', @tags];
-            }
-            case '-channels' {
-                my $num = ++$i;
-                if($num =~ /^\d+$/) {
-                    push @filters, ['channels', $num];
-                } else {
-                    die "You didn't specify an integer for the number of channels";
-                }
-            }
-            case '-print' {
-                if(! defined $_[$i + 1] or $_[$i + 1] =~ /^-/) {
-                    push @actions, ['print'];
-                } else {
-                    push @actions, ['print', $_[++$i]];
-                }
-            }
-            case '-help' {
-                print <<HELP;
-musicfind [targets] [options]
-musicfind is a utility similar to the Unix command line utility find, only
-specialized for music files.  The targets are a list of files/directories to
-search, and the options can be categorized into filters and actions:
-
-Filters
-
-    -channels num Filters out files that do not have num channels.
-    -tag name=value(,name=value)* Filters out files that don't match the given
-                                  tag name-value pairs.  The value can be a
-                                  regular string, a sh-style wildcard, or a
-                                  Perl regular expression.  Regexes must start
-                                  and end with /.
-
-Although not techincally filters, these next three options allow the user to
-better manipulate filters:
-
-    -and Only selects files that the previous and next filters are both true
-         for.
-    -or  Only selects files that the previous or the next filters are true for.
-    -not Only selects files that the next filter is not true for.
-
-Actions
-
-    -rename new_name Renames the file according to new_name, which is a
-                     printf-style format string.  See below for details.
-    -set-tag name=value(,name=value)* Sets the tags specified by the given names
-                                      to the given values.
-    -delete-tag name(,name)* Deletes the tags with the names specified.
-    -print (format)? Prints the file name.  If format is specified, prints a
-                     printf-style string.  Details below.
-    -help Print this message and exit.
-
-Rename/Print Format
-
-The printf-style format string for rename and print is similar to printf;  The
-only difference that instead of % fields specifying how to output a field, they
-specify which tag to output.  %% still expands to %.
-
-Examples
-
-This one prints the filenames of all music files with the artist tagged as
-System of a Down:
-
-musicfind . -tag artist="System of a Down"
-
-This one renames files to an artist - title format:
-
-musicfind . -rename "%artist - %title"
-
-Plugin Oriented Architecture
-
-Musicfind doesn't have any intrinsic support built in for any particular music
-file format;  all of the work specific to a file type is done by the
-MusicFind::* modules.  Currently I've written plugins for Ogg Vorbis, MP3, and
-Flac;  if you'd like to contribute, MusicFind.pm documents what methods a plugin
-needs to implement and exactly what they're supposed to do.  Plugins should then
-be placed into MusicFind/ under your \@INC.
-
-Case Sensitivity
-
-For reasons I'd rather not explain, tag names in searches and other situations
-are case-insensitive, but tag values are case-sensitive in searches.  This is
-mainly because different tools tag an artist as Artist, artist, ARTIST, etc.  If
-you want a case-insensitive value search, use a regex:
-
-musicfind . -tag artist="/System of a Down/i"
-
-Bugs and Ideas
-
-If you have found any bugs or have any great ideas for musicfind, please send
-them to me (patches are nice!) at hoelz\@wisc.edu.  I'll be making my darcs
-repository for the project public soon, so I'll post that in here when I can.
-
-Enjoy!
-HELP
-                exit(0);
-            }
-            else {
-                die "Invalid argument: $arg.  Try -help.";
-            }
+        if(exists $dispatch{$arg}) {
+            $dispatch{$arg}->();
+        } else {
+            die "Invalid argument: $arg.  Try -help.";
         }
         $lastAction = $arg;
     }
@@ -307,3 +235,80 @@ sub findRoutine
 #loadDecoders;
 processCmdLine(@ARGV);
 #find(\&findRoutine, @targets);
+
+__END__
+musicfind [targets] [options]
+musicfind is a utility similar to the Unix command line utility find, only
+specialized for music files.  The targets are a list of files/directories to
+search, and the options can be categorized into filters and actions:
+
+Filters
+
+    -channels num Filters out files that do not have num channels.
+    -tag name=value(,name=value)* Filters out files that don't match the given
+                                  tag name-value pairs.  The value can be a
+                                  regular string, a sh-style wildcard, or a
+                                  Perl regular expression.  Regexes must start
+                                  and end with /.
+
+Although not techincally filters, these next three options allow the user to
+better manipulate filters:
+
+    -and Only selects files that the previous and next filters are both true
+         for.
+    -or  Only selects files that the previous or the next filters are true for.
+    -not Only selects files that the next filter is not true for.
+
+Actions
+
+    -rename new_name Renames the file according to new_name, which is a
+                     printf-style format string.  See below for details.
+    -set-tag name=value(,name=value)* Sets the tags specified by the given names
+                                      to the given values.
+    -delete-tag name(,name)* Deletes the tags with the names specified.
+    -print (format)? Prints the file name.  If format is specified, prints a
+                     printf-style string.  Details below.
+    -help Print this message and exit.
+
+Rename/Print Format
+
+The printf-style format string for rename and print is similar to printf;  The
+only difference that instead of % fields specifying how to output a field, they
+specify which tag to output.  %% still expands to %.
+
+Examples
+
+This one prints the filenames of all music files with the artist tagged as
+System of a Down:
+
+musicfind . -tag artist="System of a Down"
+
+This one renames files to an artist - title format:
+
+musicfind . -rename "%artist - %title"
+
+Plugin Oriented Architecture
+
+Musicfind doesn't have any intrinsic support built in for any particular music
+file format;  all of the work specific to a file type is done by the
+MusicFind::* modules.  Currently I've written plugins for Ogg Vorbis, MP3, and
+Flac;  if you'd like to contribute, MusicFind.pm documents what methods a plugin
+needs to implement and exactly what they're supposed to do.  Plugins should then
+be placed into MusicFind/ under your \@INC.
+
+Case Sensitivity
+
+For reasons I'd rather not explain, tag names in searches and other situations
+are case-insensitive, but tag values are case-sensitive in searches.  This is
+mainly because different tools tag an artist as Artist, artist, ARTIST, etc.  If
+you want a case-insensitive value search, use a regex:
+
+musicfind . -tag artist="/System of a Down/i"
+
+Bugs and Ideas
+
+If you have found any bugs or have any great ideas for musicfind, please send
+them to me (patches are nice!) at hoelz\@wisc.edu.  I'll be making my darcs
+repository for the project public soon, so I'll post that in here when I can.
+
+Enjoy!
