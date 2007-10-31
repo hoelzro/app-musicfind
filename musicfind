@@ -3,19 +3,19 @@
 use strict;
 use warnings;
 
-# DEBUG
-use Data::Dumper;
 use File::Find;
 use Switch;
-use Text::Glob;
+use Text::Glob qw(glob_to_regex_string);
 
 # MakeMaker
 # POD
 # Add -exec
 # Add \( \) to cmd args
 # Allow regex modifiers /ogasdf whatever to tag searches
-# Add docs to MusicFind.pm
+# Finish COPYING in MusicFind.pm
 # Put the help section under __POD__
+# Remove line numbers from die
+# Add case insensitivity switch
 
 my @decoders;
 my @targets; # Dirs to search
@@ -51,7 +51,7 @@ sub loadDecoders
 sub processCmdLine
 {
     my $lastAction;
-    my %filterActions = qw(channels 1 tag 1);
+    my %filterActions = ('-channels' => 1, '-tag' => 1);
     my @filters;
 
     while(@_ && $_[0] !~ /^-/) {
@@ -129,12 +129,11 @@ sub processCmdLine
                     die "You didn't specify an integer for the number of channels";
                 }
             }
-            # /%(%|(\S*))/
             case '-print' {
                 if(! defined $_[$i + 1] or $_[$i + 1] =~ /^-/) {
                     push @actions, ['print'];
                 } else {
-                    push @actions, ['print', ++$i];
+                    push @actions, ['print', $_[++$i]];
                 }
             }
             case '-help' {
@@ -170,6 +169,7 @@ Actions
     -delete-tag name(,name)* Deletes the tags with the names specified.
     -print (format)? Prints the file name.  If format is specified, prints a
                      printf-style string.  Details below.
+    -help Print this message and exit.
 
 Rename/Print Format
 
@@ -217,7 +217,7 @@ HELP
                 exit(0);
             }
             else {
-                die "Invalid argument: $arg";
+                die "Invalid argument: $arg.  Try -help.";
             }
         }
         $lastAction = $arg;
@@ -279,14 +279,6 @@ HELP
 PERL
     # Clear this up in the future
     die $@ if($@);
-
-    # DEBUG
-    local $" = ' ';
-    local $\ = "\n";
-
-    print "Actions: ${\(Dumper(@actions))}";
-    print "Targets: ${\(Dumper(@targets))}";
-    print "Filter: ${\(Dumper($filterConditions))}";
 }
 
 sub loadMusicFile
@@ -303,7 +295,7 @@ sub loadMusicFile
 
 sub findRoutine
 {
-    my $file = loadMusicFile($File::Find::name);
+    my $file = loadMusicFile($_);
     if($file && applyFilters($file)) {
         foreach my $action (@actions) {
             my ($method, @args) = @$action;
