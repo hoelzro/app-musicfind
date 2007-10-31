@@ -5,6 +5,8 @@ package MusicFind;
 use strict;
 use warnings;
 
+our $VERSION = 1.0;
+
 sub substitute
 {
     my ($this, $string) = @_;

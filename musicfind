@@ -6,7 +6,6 @@ use warnings;
 use File::Find;
 use Text::Glob qw(glob_to_regex_string);
 
-# Debug the dispatch table
 # MakeMaker
 # POD
 # Add -exec
@@ -17,6 +16,10 @@ use Text::Glob qw(glob_to_regex_string);
 # Remove line numbers from die
 # Add case insensitivity switch
 # Uncomment loadDecoders and find
+# Try to improve speed for identifying file types
+# Add -- to specify -targets
+# Make sure that filters are separated by -and or -or
+# Clear tags action?
 
 my @decoders;
 my @targets; # Dirs to search
@@ -144,7 +147,7 @@ sub processCmdLine
     for($i = 0; $i < @_; $i++) {
         my $arg = $_[$i];
         if(exists $dispatch{$arg}) {
-            $dispatch{$arg}->();
+            $dispatch{$arg}->(@_);
         } else {
             die "Invalid argument: $arg.  Try -help.";
         }
@@ -152,7 +155,7 @@ sub processCmdLine
     }
 
     unless(@targets) {
-        die "No targets directories were provided";
+        die "No target directories were provided";
     }
 
     @actions = sort {
@@ -242,6 +245,14 @@ musicfind is a utility similar to the Unix command line utility find, only
 specialized for music files.  The targets are a list of files/directories to
 search, and the options can be categorized into filters and actions:
 
+Targets
+
+The target files/directories are the arguments before the first - argument.
+Each argument is also split by commas.  Examples:
+
+musicfind . foo -print # Searches the current directory and directory foo
+musicfind .,foo -print # Same thing
+
 Filters
 
     -channels num Filters out files that do not have num channels.
@@ -294,7 +305,7 @@ file format;  all of the work specific to a file type is done by the
 MusicFind::* modules.  Currently I've written plugins for Ogg Vorbis, MP3, and
 Flac;  if you'd like to contribute, MusicFind.pm documents what methods a plugin
 needs to implement and exactly what they're supposed to do.  Plugins should then
-be placed into MusicFind/ under your \@INC.
+be placed into MusicFind/ under your @INC.
 
 Case Sensitivity
 
@@ -308,7 +319,7 @@ musicfind . -tag artist="/System of a Down/i"
 Bugs and Ideas
 
 If you have found any bugs or have any great ideas for musicfind, please send
-them to me (patches are nice!) at hoelz\@wisc.edu.  I'll be making my darcs
+them to me (patches are nice!) at hoelz@wisc.edu.  I'll be making my darcs
 repository for the project public soon, so I'll post that in here when I can.
 
 Enjoy!
