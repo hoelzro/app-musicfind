@@ -6,10 +6,9 @@ use warnings;
 use File::Find;
 use Text::Glob qw(glob_to_regex_string);
 
-# MakeMaker
-# POD
+# Make sure parens are matching, and only filters are inside
+
 # Add -exec
-# Add \( \) to cmd args
 # Allow regex modifiers /ogasdf whatever to tag searches
 # Finish COPYING in MusicFind.pm
 # Put the help section under __POD__
@@ -20,6 +19,8 @@ use Text::Glob qw(glob_to_regex_string);
 # Add -- to specify -targets
 # Make sure that filters are separated by -and or -or
 # Clear tags action?
+# tests, other module files
+# POD
 
 my @decoders;
 my @targets; # Dirs to search
@@ -55,9 +56,11 @@ sub loadDecoders
 sub processCmdLine
 {
     my $lastAction;
-    my %filterActions = ('-channels' => 1, '-tag' => 1);
+    my %filterActions = ('-channels' => 1, '-tag' => 1, ')' => 1, '(' => 1);
     my @filters;
     my $i;
+    my $parenLevel = 0;
+
     my %dispatch = (
         '-and' => sub {
             if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
@@ -81,6 +84,9 @@ sub processCmdLine
             }
         },
         '-rename' => sub {
+            if($parenLevel) {
+                die "Only filters may occur within parentheses";
+            }
             push @actions, ['rename', $_[++$i]];
         },
         '-tag' => sub {
@@ -101,6 +107,9 @@ sub processCmdLine
             push @filters, $action;
         },
         '-set-tag' => sub {
+            if($parenLevel) {
+                die "Only filters may occur within parentheses";
+            }
             my @tags = split /,/, $_[++$i];
 
             my $action = ['set_tag'];
@@ -115,11 +124,14 @@ sub processCmdLine
             push @actions, $action;
         },
         '-delete-tag' => sub {
+            if($parenLevel) {
+                die "Only filters may occur within parentheses";
+            }
             my @tags = split /,/, $_[++$i];
             push @actions, ['delete_tag', @tags];
         },
         '-channels' => sub {
-            my $num = ++$i;
+            my $num = $_[++$i];
             if($num =~ /^\d+$/) {
                 push @filters, ['channels', $num];
             } else {
@@ -127,7 +139,10 @@ sub processCmdLine
             }
         },
         '-print' => sub {
-            if(! defined $_[$i + 1] or $_[$i + 1] =~ /^-/) {
+            if($parenLevel) {
+                die "Only filters may occur within parentheses";
+            }
+            if(! defined $_[$i + 1] || $_[$i + 1] =~ /^-/ || $_[$i + 1] =~ /^\(|\)$/) {
                 push @actions, ['print'];
             } else {
                 push @actions, ['print', $_[++$i]];
@@ -136,10 +151,21 @@ sub processCmdLine
         '-help' => sub {
             print while(<DATA>);
             exit(0);
+        },
+        '(' => sub {
+            push @filters, ['('];
+            $parenLevel++;
+        },
+        ')' => sub {
+            push @filters, [')'];
+            unless($parenLevel) {
+                die "Unmatching parentheses";
+            }
+            $parenLevel--;
         }
     );
 
-    while(@_ && $_[0] !~ /^-/) {
+    while(@_ && $_[0] !~ /^-/ && $_[0] !~ /^\(|\)$/) {
         push @targets, split(/,/, $_[0]);
         shift;
     }
@@ -152,6 +178,10 @@ sub processCmdLine
             die "Invalid argument: $arg.  Try -help.";
         }
         $lastAction = $arg;
+    }
+
+    if($parenLevel) {
+        die "Unmatching parentheses";
     }
 
     unless(@targets) {
@@ -194,6 +224,10 @@ sub processCmdLine
                 push @tags, "\$file->tag(\'$name\') =~ /$value/o";
             }
             $filter = join ' && ', @tags;
+        } elsif(@$filter[0] eq '(') {
+            $filter = '(';
+        } elsif(@$filter[0] eq ')') {
+            $filter = ')';
         }
     }
     my $filterConditions;
