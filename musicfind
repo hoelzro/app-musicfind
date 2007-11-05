@@ -20,11 +20,12 @@ Documentation:
 Convert that under __END__ into POD
 
 Finishing touches:
-If the user specifies a regex for -tag, verify that it's a good regex
-Reload file data after rename
+Reload file data after rename (and exec?)
 Make sure that filters are separated by -and or -or (implicit)
 Uncomment loadDecoders and find
 Make -exec into a filter?
+Try to break up processCmdLine a bit
+As usual, look for comments
 
 How 'bout writing those plugins?
 =cut
@@ -116,7 +117,16 @@ sub processCmdLine
             foreach my $tag (@tags) {
                 if($tag =~ /(.+)=(.+)/) {
                     my ($name, $value) = ($1, $2);
-                    unless($value =~ /^\/(.*)\/$/) {
+                    if($value =~ /^\/(.*)\/(i)?$/) {
+                        my $ignore = $2 ? '(?i)' : '';
+                        $value = "${ignore}$1";
+                        eval {
+                            qr/$value/;
+                        };
+                        if($@) {
+                            die "Invalid regular expression input: /$1/\n";
+                        }
+                    } else {
                         $value = glob_to_regex_string($value);
                     }
                     push @$action, $name, $value;
@@ -317,10 +327,14 @@ search, and the options can be categorized into filters and actions:
 Targets
 
 The target files/directories are the arguments before the first - argument.
-Each argument is also split by commas.  Examples:
+Each argument is also split by commas.  Also, all arguments following -- are
+added to the target list, but these are NOT split by commas.  Examples:
 
 musicfind . foo -print # Searches the current directory and directory foo
 musicfind .,foo -print # Same thing
+musicfind . -print -- foo # Same thing
+musicfind . -print -- foo,bar -baz # Searches the current directory, directory
+                                     foo,bar, and directory -baz
 
 Filters
 
@@ -387,9 +401,12 @@ Case Sensitivity
 For reasons I'd rather not explain, tag names in searches and other situations
 are case-insensitive, but tag values are case-sensitive in searches.  This is
 mainly because different tools tag an artist as Artist, artist, ARTIST, etc.  If
-you want a case-insensitive value search, use a regex:
+you want a case-insensitive value search, use the -ignore-case option:
 
-musicfind . -tag artist="/System of a Down/i"
+musicfind . -tag artist="System of a Down" -ignore-case
+
+-ignore-case works with either wildcards or regexes, and appending /i to the end
+of a regex will do the same thing as -ignore-case, but only for that regex!
 
 Bugs and Ideas
 
