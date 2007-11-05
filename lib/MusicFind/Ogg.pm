@@ -17,11 +17,12 @@ sub new
     my $this= MusicFind::new($class);
     $this->{'filename'} = $filename;
     $this->reload();
+    return $this;
 }
 
 sub accept
 {
-    my ($this, $filename) = @_;
+    my ($class, $filename) = @_;
     return $filename =~ /\.ogg$/i && Ogg::Vorbis::Header->new($filename);
 }
 
@@ -39,7 +40,10 @@ sub set_tag
         $nameValuePairs[$i] = lc $nameValuePairs[$i];
         $this->{'object'}->clear_comments($this->{'mapping'}{$nameValuePairs[$i]});
     }
-    $this->{'object'}->add_comments(@nameValuePairs);
+    unless($this->{'object'}->add_comments(@nameValuePairs)) {
+        die "An odd-length array was passed to add_comments in MusicFind::Ogg\n";
+    }
+    $this->{'object'}->write_vorbis;
 }
 
 sub delete_tag
@@ -50,6 +54,7 @@ sub delete_tag
     foreach (@names) {
         $this->{'object'}->clear_comments($this->{'mapping'}{lc $_});
     }
+    $this->{'object'}->write_vorbis;
 }
 
 sub tag
@@ -73,6 +78,10 @@ sub reload
     local $_;
 
     $this->{'object'} = Ogg::Vorbis::Header->load($this->{'filename'});
+    unless($this->{'object'}) {
+        die "Somehow, a non-Ogg Vorbis file slipped through accept: " .
+            $this->{'filename'};
+    }
     $this->{'mapping'} = {};
     foreach ($this->{'object'}->comment_tags()) {
         $this->{'mapping'}{lc $_} = $_;

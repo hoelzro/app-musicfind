@@ -21,7 +21,7 @@ Convert that under __END__ into POD
 Man page?
 
 Finishing touches:
-Error handling in MusicFind::Ogg
+Global DEBUG?
 Uncomment loadDecoders and find
 Try to break up processCmdLine a bit
 As usual, look for comments

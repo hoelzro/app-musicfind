@@ -188,6 +188,7 @@ sub new
     my $this = MusicFind::new($class);
     $this->{'filename'} = $filename;
     $this->reload();
+    return $this;
 }
 
 See C<dirty>.
