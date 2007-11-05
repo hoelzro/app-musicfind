@@ -54,6 +54,11 @@ sub exec
     return ! system("$programName @args");
 }
 
+sub dummy_exec
+{
+    # No op
+}
+
 sub accept
 {
     return 0;
@@ -96,6 +101,11 @@ the resulting string.  Newlines are added to the output.
 Essentially performs system(@args), only each argument after the first is
 run through substitute, and '{}' is replaced by the filename.  Similar to find's
 exec.  If the execution fails, the program will warn the user.
+
+=item $object->dummy_exec()
+
+Just a convenience method to make things easier for me to code -exec as a
+filter while having it count as an action.
 
 =back
 

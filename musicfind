@@ -23,7 +23,6 @@ Finishing touches:
 Reload file data after rename (and exec?)
 Make sure that filters are separated by -and or -or (implicit)
 Uncomment loadDecoders and find
-Make -exec into a filter?
 Try to break up processCmdLine a bit
 As usual, look for comments
 
@@ -75,7 +74,8 @@ sub loadDecoders
 sub processCmdLine
 {
     my $lastAction = '';
-    my %filterActions = ('-channels' => 1, '-tag' => 1, ')' => 1, '(' => 1);
+    my %filterActions = ('-channels' => 1, '-tag' => 1, ')' => 1, '(' => 1,
+        '-exec' => 1);
     my @filters;
     my $i;
     my $parenLevel = 0;
@@ -198,7 +198,8 @@ sub processCmdLine
             $i++;
             push @args, $_[$i++] until($i >= @_ || $_[$i] eq ';');
             die "-exec is missing a terminating semicolon\n" unless(defined $_[$i]);
-            push @actions, ['exec', @args];
+            push @filters, ['exec', @args];
+            push @actions, ['dummy_exec'];
         },
         '-ignore-case' => sub {
             $ignoreCase = 'i';
@@ -262,6 +263,10 @@ sub processCmdLine
             $filter = '(';
         } elsif(@$filter[0] eq ')') {
             $filter = ')';
+        } elsif(@$filter[0] eq 'exec') {
+            my @args = map { $_ = "\'$_\'"; } @$filter[1..@$filter - 1];
+            local $" = ', ';
+            $filter = "\$file->exec(@args)";
         }
     }
     my $filterConditions;
