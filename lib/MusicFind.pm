@@ -5,7 +5,15 @@ package MusicFind;
 use strict;
 use warnings;
 
+use constant DEBUG => 1;
+
+require Exporter;
+
 our $VERSION = 1.0;
+our @ISA = qw(Exporter);
+our @EXPORT = qw(DEBUG);
+our @EXPORT_OK = @EXPORT;
+our %EXPORT_TAGS = (':DEFAULT' => \@EXPORT);
 
 sub substitute
 {
@@ -53,7 +61,7 @@ sub print0
 sub exec
 {
     my ($this, $programName, @args) = @_;
-    
+
     $this->reload if($this->dirty);
 
     local $_;

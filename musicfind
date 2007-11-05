@@ -5,7 +5,7 @@ use warnings;
 
 use File::Find;
 
-use constant DEBUG => 1;
+use MusicFind qw(DEBUG);
 
 BEGIN
 {
@@ -21,7 +21,9 @@ Convert that under __END__ into POD
 Man page?
 
 Finishing touches:
-Global DEBUG?
+Test FLAC plugin; test set_tag with new tag on Ogg
+Test the module loader (make sure failed modules don't fuck it up)
+Make NO volatile actions occur when DEBUG is on
 Uncomment loadDecoders and find
 Try to break up processCmdLine a bit
 As usual, look for comments
