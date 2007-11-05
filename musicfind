@@ -4,33 +4,27 @@ use strict;
 use warnings;
 
 use File::Find;
-use Text::Glob qw(glob_to_regex_string);
 
-my $debug;
+use constant DEBUG => 1;
 
 BEGIN
 {
-    $debug = 0;
-    if($debug) {
+    if(DEBUG) {
         require Data::Dumper;
         Data::Dumper->import();
     }
 }
 
 =pod
-Options:
-
-Make -exec into a filter?
--clear-tags
--ignore-case
--- to specify -targets
-
 Documentation:
 Convert that under __END__ into POD
 
 Finishing touches:
+If the user specifies a regex for -tag, verify that it's a good regex
+Reload file data after rename
 Make sure that filters are separated by -and or -or (implicit)
 Uncomment loadDecoders and find
+Make -exec into a filter?
 
 How 'bout writing those plugins?
 =cut
@@ -39,6 +33,16 @@ How 'bout writing those plugins?
 my @decoders;
 my @targets; # Dirs to search
 my @actions; # What to do for each file
+
+sub glob_to_regex_string
+{
+    my $glob = shift;
+
+    $glob =~ s/\*/.*/g;
+    $glob =~ s/\?/./g;
+
+    return $glob;
+}
 
 sub loadDecoders
 {
@@ -74,7 +78,9 @@ sub processCmdLine
     my @filters;
     my $i;
     my $parenLevel = 0;
+    my $ignoreCase = '';
 
+    # Dispatch table
     my %dispatch = (
         '-and' => sub {
             if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
@@ -179,16 +185,27 @@ sub processCmdLine
         },
         '-exec' => sub {
             my @args;
-            push @args, $_[$i] until($_[++$i] eq ';');
+            $i++;
+            push @args, $_[$i++] until($i >= @_ || $_[$i] eq ';');
+            die "-exec is missing a terminating semicolon\n" unless(defined $_[$i]);
             push @actions, ['exec', @args];
+        },
+        '-ignore-case' => sub {
+            $ignoreCase = 'i';
+        },
+        '--' => sub {
+            push @targets, @_[$i + 1 .. @_ - 1];
+            $i = @_;
         }
     );
 
+    # Processes targets
     while(@_ && $_[0] !~ /^-/ && $_[0] !~ /^\(|\)$/) {
         push @targets, split(/,/, $_[0]);
         shift;
     }
 
+    # Processes remainder of arguments
     for($i = 0; $i < @_; $i++) {
         my $arg = $_[$i];
         if(exists $dispatch{$arg}) {
@@ -199,34 +216,22 @@ sub processCmdLine
         $lastAction = $arg;
     }
 
+    # Check that all parens are matched
     if($parenLevel) {
         die "Unmatching parentheses\n";
     }
 
+    # Verify that there are targets
     unless(@targets) {
         die "No target directories were provided; try -help for options\n";
     }
 
-    @actions = sort {
-        if($a eq 'rename') {
-            if($b eq 'rename') {
-                return 0;
-            } else {
-                return -1;
-            }
-        } else {
-            if($b eq 'rename') {
-                return 1;
-            } else {
-                return 0;
-            }
-        }
-    } @actions;
-
+    # If no actions are specified, default to print
     unless(@actions) {
         push @actions, ['print'];
     }
 
+    # Create the filter subroutine dynamically
     foreach my $filter (@filters) {
         if(@$filter[0] eq 'and') {
             $filter = '&&';
@@ -240,7 +245,7 @@ sub processCmdLine
             my @tags;
             for(my $i = 1; $i < @$filter; $i += 2) {
                 my ($name, $value) = (@$filter[$i], @$filter[$i + 1]);
-                push @tags, "\$file->tag(\'$name\') =~ /$value/o";
+                push @tags, "\$file->tag(\'$name\') =~ /$value/o$ignoreCase";
             }
             $filter = join ' && ', @tags;
         } elsif(@$filter[0] eq '(') {
@@ -262,12 +267,11 @@ sub processCmdLine
     }
 PERL
     if($@) {
-        die "An eval error occured for condition string \"$filterConditions\":
-        $!.\nPlease send this message along with the arguments you used to
-        hoelz\@wisc.edu so the developer can fix the issue\n";
+        die "An eval error occured for condition string \"$filterConditions\": $!.\nPlease send this message along with the arguments you used to hoelz\@wisc.edu so the developer can fix the issue\n";
     }
 
-    if($debug) {
+    # Debugging stuff
+    if(DEBUG) {
         local $\ = "\n";
         local $, = ' ';
         print "Actions: ", Dumper(\@actions);
@@ -344,6 +348,8 @@ Actions
     -delete-tag name(,name)* Deletes the tags with the names specified.
     -print (format)? Prints the file name.  If format is specified, prints a
                      printf-style string.  Details below.
+    -exec Functions similar to find's -exec.  All arguments up to ; are included
+          arguments to the given program.
     -help Print this message and exit.
 
 Rename/Print Format
@@ -362,6 +368,10 @@ musicfind . -tag artist="System of a Down"
 This one renames files to an artist - title format:
 
 musicfind . -rename "%artist - %title"
+
+This one purges your computer of evil:
+
+musicfind / -tag artist="Britney Spears" -exec rm '{}' \;
 
 Plugin Oriented Architecture
 
