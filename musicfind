@@ -6,21 +6,35 @@ use warnings;
 use File::Find;
 use Text::Glob qw(glob_to_regex_string);
 
-# Make sure parens are matching, and only filters are inside
+my $debug;
 
-# Add -exec
-# Allow regex modifiers /ogasdf whatever to tag searches
-# Finish COPYING in MusicFind.pm
-# Put the help section under __POD__
-# Remove line numbers from die
-# Add case insensitivity switch
-# Uncomment loadDecoders and find
-# Try to improve speed for identifying file types
-# Add -- to specify -targets
-# Make sure that filters are separated by -and or -or
-# Clear tags action?
-# tests, other module files
-# POD
+BEGIN
+{
+    $debug = 0;
+    if($debug) {
+        require Data::Dumper;
+        Data::Dumper->import();
+    }
+}
+
+=pod
+Options:
+
+Make -exec into a filter?
+-clear-tags
+-ignore-case
+-- to specify -targets
+
+Documentation:
+Convert that under __END__ into POD
+
+Finishing touches:
+Make sure that filters are separated by -and or -or (implicit)
+Uncomment loadDecoders and find
+
+How 'bout writing those plugins?
+=cut
+
 
 my @decoders;
 my @targets; # Dirs to search
@@ -55,7 +69,7 @@ sub loadDecoders
 
 sub processCmdLine
 {
-    my $lastAction;
+    my $lastAction = '';
     my %filterActions = ('-channels' => 1, '-tag' => 1, ')' => 1, '(' => 1);
     my @filters;
     my $i;
@@ -66,26 +80,26 @@ sub processCmdLine
             if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
                 push @filters, ['and'];
             } else {
-                die "Only filter actions can occur on either side of an -and switch";
+                die "Only filter actions can occur on either side of an -and switch\n";
             }
         },
         '-or' => sub {
             if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
                 push @filters, ['or'];
             } else {
-                die "Only filter actions can occur on either side of an -or switch";
+                die "Only filter actions can occur on either side of an -or switch\n";
             }
         },
         '-not' => sub {
             if(exists $filterActions{$_[$i + 1]}) {
                 push @filters, ['not'];
             } else {
-                die "Only filter actions can occur after a -not switch";
+                die "Only filter actions can occur after a -not switch\n";
             }
         },
         '-rename' => sub {
             if($parenLevel) {
-                die "Only filters may occur within parentheses";
+                die "Only filters may occur within parentheses\n";
             }
             push @actions, ['rename', $_[++$i]];
         },
@@ -101,14 +115,14 @@ sub processCmdLine
                     }
                     push @$action, $name, $value;
                 } else {
-                    die "Tag matches must be in the format name=value; $tag is invalid";
+                    die "Tag matches must be in the format name=value; $tag is invalid\n";
                 }
             }
             push @filters, $action;
         },
         '-set-tag' => sub {
             if($parenLevel) {
-                die "Only filters may occur within parentheses";
+                die "Only filters may occur within parentheses\n";
             }
             my @tags = split /,/, $_[++$i];
 
@@ -118,14 +132,14 @@ sub processCmdLine
                     my ($name, $value) = ($1, $2);
                     push @$action, $name, $value;
                 } else {
-                    die "Tag matches must be in the format name=value; $tag is invalid";
+                    die "Tag matches must be in the format name=value; $tag is invalid\n";
                 }
             }
             push @actions, $action;
         },
         '-delete-tag' => sub {
             if($parenLevel) {
-                die "Only filters may occur within parentheses";
+                die "Only filters may occur within parentheses\n";
             }
             my @tags = split /,/, $_[++$i];
             push @actions, ['delete_tag', @tags];
@@ -135,12 +149,12 @@ sub processCmdLine
             if($num =~ /^\d+$/) {
                 push @filters, ['channels', $num];
             } else {
-                die "You didn't specify an integer for the number of channels";
+                die "You didn't specify an integer for the number of channels\n";
             }
         },
         '-print' => sub {
             if($parenLevel) {
-                die "Only filters may occur within parentheses";
+                die "Only filters may occur within parentheses\n";
             }
             if(! defined $_[$i + 1] || $_[$i + 1] =~ /^-/ || $_[$i + 1] =~ /^\(|\)$/) {
                 push @actions, ['print'];
@@ -159,9 +173,14 @@ sub processCmdLine
         ')' => sub {
             push @filters, [')'];
             unless($parenLevel) {
-                die "Unmatching parentheses";
+                die "Unmatching parentheses\n";
             }
             $parenLevel--;
+        },
+        '-exec' => sub {
+            my @args;
+            push @args, $_[$i] until($_[++$i] eq ';');
+            push @actions, ['exec', @args];
         }
     );
 
@@ -175,17 +194,17 @@ sub processCmdLine
         if(exists $dispatch{$arg}) {
             $dispatch{$arg}->(@_);
         } else {
-            die "Invalid argument: $arg.  Try -help.";
+            die "Invalid argument: $arg.  Try -help.\n";
         }
         $lastAction = $arg;
     }
 
     if($parenLevel) {
-        die "Unmatching parentheses";
+        die "Unmatching parentheses\n";
     }
 
     unless(@targets) {
-        die "No target directories were provided";
+        die "No target directories were provided; try -help for options\n";
     }
 
     @actions = sort {
@@ -242,8 +261,20 @@ sub processCmdLine
         return $filterConditions;
     }
 PERL
-    # Clear this up in the future
-    die $@ if($@);
+    if($@) {
+        die "An eval error occured for condition string \"$filterConditions\":
+        $!.\nPlease send this message along with the arguments you used to
+        hoelz\@wisc.edu so the developer can fix the issue\n";
+    }
+
+    if($debug) {
+        local $\ = "\n";
+        local $, = ' ';
+        print "Actions: ", Dumper(\@actions);
+        print "Targets: ", Dumper(\@targets);
+        print "Filter string: $filterConditions";
+        exit(0);
+    }
 }
 
 sub loadMusicFile
