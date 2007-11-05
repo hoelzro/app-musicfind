@@ -21,6 +21,7 @@ Convert that under __END__ into POD
 Man page?
 
 Finishing touches:
+Error handling in MusicFind::Ogg
 Uncomment loadDecoders and find
 Try to break up processCmdLine a bit
 As usual, look for comments
@@ -274,6 +275,7 @@ sub processCmdLine
 
     # Tie together non-joined filters with implicit ands
     for($i = 0; $i < @filters - 1; $i++) {
+        next if($filters[$i]->[0] eq 'not');
         if($filters[$i + 1]->[0] ne 'and' &&
             $filters[$i + 1]->[0] ne 'or') {
             splice(@filters, $i + 1, 0, ['and']);
@@ -359,6 +361,7 @@ processCmdLine(@ARGV);
 #find(\&findRoutine, @targets);
 
 __END__
+
 musicfind [targets] [options]
 musicfind is a utility similar to the Unix command line utility find, only
 specialized for music files.  The targets are a list of files/directories to
