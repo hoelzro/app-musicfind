@@ -21,7 +21,8 @@ sub rename
     my $name = $this->filename;
     $newName = $this->substitute($newName);
     rename $name, $newName or warn "Unable to rename $name to $newName: $!\n";
-    # Reopen?
+    $this->{filename} = $newName;
+    $this->dirty = 1;
 }
 
 sub print
@@ -40,6 +41,8 @@ sub exec
 {
     my ($this, $programName, @args) = @_;
     
+    $this->reload if($this->dirty);
+
     local $_;
     @args = map {
         if($_ eq '{}') {
@@ -52,6 +55,17 @@ sub exec
 
     local $" = ' ';
     return ! system("$programName @args");
+}
+
+sub new 
+{
+    return bless {dirty => undef}, shift;
+}
+
+sub dirty : lvalue
+{
+    my $this = shift;
+    $this->{dirty};
 }
 
 sub accept
@@ -97,6 +111,11 @@ Essentially performs system(@args), only each argument after the first is
 run through substitute, and '{}' is replaced by the filename.  Similar to find's
 exec.  If the execution fails, the program will warn the user.
 
+=item $object->dirty
+
+A read-write property indicating that the location of the current file has
+changed.  Set to true after a rename action.  You shouldn't have to touch this.
+
 =back
 
 =head2 Abstract methods
@@ -110,7 +129,8 @@ handle the file specified by $filename.
 
 =item $class->new($filename)
 
-This class method should construct a new object.
+This class method should construct a new object, using the super class
+constructor.
 
 =item $object->channels()
 
@@ -135,7 +155,27 @@ This method should return the value of the tag specified by $name.
 This method should return the filename of the file represented by this MusicFind
 object.
 
+=item $object->reload()
+
+This method should reload the wrapped object with the file given by
+$object->{filename}.  This gets called by exec if the current object is dirty.
+It's kind of like calling new, but the original object is used instead of a new
+blessed reference.  In fact, it might be a good idea to implement new as
+follows:
+
+sub new
+{
+    my ($class, $filename) = @_;
+    my $this = MusicFind::new($class);
+    $this->{'filename'} = $filename;
+    $this->reload();
+}
+
+See C<dirty>.
 =back
+
+Feel free to look at the standard plugins I've written to see how a plugin
+should be written.
 
 =head1 AUTHOR
 

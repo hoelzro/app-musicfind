@@ -17,13 +17,14 @@ BEGIN
 
 =pod
 Documentation:
+Make sure that plugins use super.new
 Convert that under __END__ into POD
+Man page?
 
 Finishing touches:
-Reload file data after rename (and exec?)
+-print0?
 Make sure that filters are separated by -and or -or (implicit)
 Uncomment loadDecoders and find
-Make -exec into a filter?
 Try to break up processCmdLine a bit
 As usual, look for comments
 
@@ -80,6 +81,7 @@ sub processCmdLine
     my $i;
     my $parenLevel = 0;
     my $ignoreCase = '';
+    my ($execSeen, $renameSeen);
 
     # Dispatch table
     my %dispatch = (
@@ -108,7 +110,12 @@ sub processCmdLine
             if($parenLevel) {
                 die "Only filters may occur within parentheses\n";
             }
-            push @actions, ['rename', $_[++$i]];
+            if($renameSeen) {
+                die "Sorry, only one rename action is allowed\n";
+            } else {
+                push @actions, ['rename', $_[++$i]];
+                $renameSeen = 1;
+            }
         },
         '-tag' => sub {
             my @tags = split /,/, $_[++$i];
@@ -194,11 +201,19 @@ sub processCmdLine
             $parenLevel--;
         },
         '-exec' => sub {
-            my @args;
-            $i++;
-            push @args, $_[$i++] until($i >= @_ || $_[$i] eq ';');
-            die "-exec is missing a terminating semicolon\n" unless(defined $_[$i]);
-            push @actions, ['exec', @args];
+            if($parenLevel) {
+                die "Only filters may occur within parentheses\n";
+            }
+            if($execSeen) {
+                die "Sorry, only one exec action is allowed\n";
+            } else {
+                my @args;
+                $i++;
+                push @args, $_[$i++] until($i >= @_ || $_[$i] eq ';');
+                die "-exec is missing a terminating semicolon\n" unless(defined $_[$i]);
+                push @actions, ['exec', @args];
+                $execSeen = 1;
+            }
         },
         '-ignore-case' => sub {
             $ignoreCase = 'i';
@@ -240,6 +255,15 @@ sub processCmdLine
     unless(@actions) {
         push @actions, ['print'];
     }
+
+    # Make sure destructive actions come last
+    my %actionPriorities = ('rename' => 1, 'exec' => 2);
+    @actions = sort {
+        my $pa = $actionPriorities{$a->[0]} || 0;
+        my $pb = $actionPriorities{$b->[0]} || 0;
+
+        $pa <=> $pb;
+    } @actions;
 
     # Create the filter subroutine dynamically
     foreach my $filter (@filters) {
@@ -365,6 +389,14 @@ Actions
     -exec Functions similar to find's -exec.  All arguments up to ; are included
           arguments to the given program.
     -help Print this message and exit.
+
+About Rename and Exec
+
+The -rename and -exec actions, due to their volatile nature, are automatically
+sent to the end of the action list, and they may only occur once.  However, this
+shouldn't really matter, since there's no point in renaming a file twice in one
+execution, and exec allows you to string together commands anyway.  Just keep in
+mind that {} will only interpolate to the original filename.
 
 Rename/Print Format
 
