@@ -19,7 +19,6 @@ BEGIN
 Convert that under __END__ into POD
 Man page?
 
-Shortcuts for -tag artist, etc (-artist=Foobar)
 Try to break up processCmdLine a bit
 Rigourously test MusicFind::*
 As usual, look for comments
@@ -62,6 +61,7 @@ sub loadDecoders
             };
             $module =~ s/\.pm$//;
             if($@) {
+                $@ =~ s/\n.*$//s;
                 push @failed, ["MusicFind::$module", $@];
             } else {
                 push @decoders, "MusicFind::$module" unless($@);
@@ -83,24 +83,36 @@ sub processCmdLine
     my $ignoreCase = '';
     my ($execSeen, $renameSeen);
 
+    my %dispatch;
+
+    # Shortcut for -artist, -album, -title, and -tracknumber
+    my $macroClosure = sub {
+        my $tagName = $_[$i];
+        $tagName = substr $tagName, 1, length($tagName) - 1;
+        my $oldI = $i;
+        $i = 0;
+        $dispatch{'-tag'}->('-tag', "$tagName=$_[$oldI + 1]");
+        $i = $oldI + 1;
+    };
+
     # Dispatch table
-    my %dispatch = (
+    %dispatch = (
         '-and' => sub {
-            if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
+            if(exists $filterActions{$lastAction || ''} && exists $filterActions{$_[$i + 1] || ''}) {
                 push @filters, ['and'];
             } else {
                 die "Only filter actions can occur on either side of an -and switch\n";
             }
         },
         '-or' => sub {
-            if(exists $filterActions{$lastAction} && exists $filterActions{$_[$i + 1]}) {
+            if(exists $filterActions{$lastAction || ''} && exists $filterActions{$_[$i + 1] || ''}) {
                 push @filters, ['or'];
             } else {
                 die "Only filter actions can occur on either side of an -or switch\n";
             }
         },
         '-not' => sub {
-            if(exists $filterActions{$_[$i + 1]}) {
+            if(exists $filterActions{$_[$i + 1] || ''}) {
                 push @filters, ['not'];
             } else {
                 die "Only filter actions can occur after a -not switch\n";
@@ -113,11 +125,17 @@ sub processCmdLine
             if($renameSeen) {
                 die "Sorry, only one rename action is allowed\n";
             } else {
+                unless(defined $_[$i + 1]) {
+                    die "-rename requires an argument\n";
+                }
                 push @actions, ['rename', $_[++$i]];
                 $renameSeen = 1;
             }
         },
         '-tag' => sub {
+            unless(defined $_[$i + 1]) {
+                die "-tag requires an argument\n";
+            }
             my @tags = split /,/, $_[++$i];
 
             my $action = ['check_tag'];
@@ -127,6 +145,7 @@ sub processCmdLine
                     if($value =~ /^\/(.*)\/(i)?$/) {
                         my $ignore = $2 ? '(?i)' : '';
                         $value = "${ignore}$1";
+                        $value =~ s/\//\\\//g;
                         eval {
                             qr/$value/;
                         };
@@ -134,6 +153,7 @@ sub processCmdLine
                             die "Invalid regular expression input: /$1/\n";
                         }
                     } else {
+                        $value =~ s/\//\\\//g;
                         $value = glob_to_regex_string($value);
                     }
                     push @$action, $name, $value;
@@ -146,6 +166,9 @@ sub processCmdLine
         '-set-tag' => sub {
             if($parenLevel) {
                 die "Only filters may occur within parentheses\n";
+            }
+            unless(defined $_[$i + 1]) {
+                die "-set-tag requires an argument\n";
             }
             my @tags = split /,/, $_[++$i];
 
@@ -164,10 +187,16 @@ sub processCmdLine
             if($parenLevel) {
                 die "Only filters may occur within parentheses\n";
             }
+            unless(defined $_[$i + 1]) {
+                die "-delete-tag requires an argument\n";
+            }
             my @tags = split /,/, $_[++$i];
             push @actions, ['delete_tag', @tags];
         },
         '-channels' => sub {
+            unless(defined $_[$i + 1]) {
+                die "-channels requires an argument\n";
+            }
             my $num = $_[++$i];
             if($num =~ /^\d+$/) {
                 push @filters, ['channels', $num];
@@ -248,7 +277,11 @@ sub processCmdLine
         '-version' => sub {
             print "musicfind version $VERSION\n";
             exit(0);
-        }
+        },
+        '-artist' => $macroClosure,
+        '-album' => $macroClosure,
+        '-title' => $macroClosure,
+        '-tracknumber' => $macroClosure
     );
 
     # Processes targets
@@ -355,13 +388,15 @@ PERL
 sub loadMusicFile
 {
     my ($fullpath, $filename) = @_;
+    my $object;
 
     foreach my $dec (@decoders) {
         if($dec->accept($filename)) {
-            return $dec->new($fullpath, $filename);
+            $object = $dec->new($fullpath, $filename);
+            last if($object);
         }
     }
-    return undef;
+    return $object;
 }
 
 sub findRoutine
@@ -408,6 +443,11 @@ Filters
                                   regular string, a sh-style wildcard, or a
                                   Perl regular expression.  Regexes must start
                                   and end with /.
+    -artist
+    -album
+    -title
+    -tracknumber These are shortcuts to -tag;  -artist is equivalent to -tag
+                 artist=value, etc.
 
 Although not techincally filters, these next three options allow the user to
 better manipulate filters:

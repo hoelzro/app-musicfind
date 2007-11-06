@@ -5,8 +5,18 @@ package MusicFind::Ogg;
 use strict;
 use warnings;
 
-require MusicFind;
-use Ogg::Vorbis::Header;
+use MusicFind;
+
+BEGIN
+{
+    eval {
+        require Ogg::Vorbis::Header;
+        Ogg::Vorbis::Header->import();
+    };
+    if($@) {
+        die "Ogg::Vorbis::Header not found; please install it if you want FLAC support.\n";
+    }
+}
 
 our $VERSION = 1.0;
 our @ISA = qw(MusicFind);
@@ -17,7 +27,10 @@ sub new
     my $this= MusicFind::new($class);
     $this->{'fullpath'} = $fullpath;
     $this->{'filename'} = $filename;
-    $this->reload();
+    eval {
+        $this->reload();
+    };
+    undef $this if($@);
     return $this;
 }
 

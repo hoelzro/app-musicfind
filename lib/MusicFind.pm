@@ -5,7 +5,7 @@ package MusicFind;
 use strict;
 use warnings;
 
-use constant DEBUG => 0;
+use constant DEBUG => 1;
 
 BEGIN
 {
@@ -176,6 +176,7 @@ handle the file specified by $filename.
 
 This class method should construct a new object, using the super class
 constructor.  C<$filename> should be passed to the super class constructor.
+This class method should return undef on failure.
 
 =item $object->channels()
 
