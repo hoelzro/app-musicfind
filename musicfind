@@ -19,8 +19,6 @@ BEGIN
 Convert that under __END__ into POD
 Man page?
 
-You need to chdir when renaming now! (Or change the constructor to accept
-filename and full path; I like this better)
 Shortcuts for -tag artist, etc (-artist=Foobar)
 Try to break up processCmdLine a bit
 Rigourously test MusicFind::*
@@ -356,11 +354,11 @@ PERL
 
 sub loadMusicFile
 {
-    my $filename = shift;
+    my ($fullpath, $filename) = @_;
 
     foreach my $dec (@decoders) {
         if($dec->accept($filename)) {
-            return $dec->new($filename);
+            return $dec->new($fullpath, $filename);
         }
     }
     return undef;
@@ -368,7 +366,7 @@ sub loadMusicFile
 
 sub findRoutine
 {
-    my $file = loadMusicFile($_);
+    my $file = loadMusicFile($File::Find::name, $_);
     if($file && applyFilters($file)) {
         foreach my $action (@actions) {
             my ($method, @args) = @$action;

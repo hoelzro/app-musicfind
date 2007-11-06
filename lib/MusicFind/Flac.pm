@@ -13,8 +13,9 @@ our @ISA = qw(MusicFind);
 
 sub new
 {
-    my ($class, $filename) = @_;
+    my ($class, $fullpath, $filename) = @_;
     my $this= MusicFind::new($class);
+    $this->{'fullpath'} = $fullpath;
     $this->{'filename'} = $filename;
     $this->reload();
     return $this;
@@ -89,7 +90,7 @@ sub tag
 sub filename
 {
     my $this = shift;
-    return $this->{'filename'};
+    return $this->{'fullpath'};
 }
 
 sub reload
@@ -98,10 +99,10 @@ sub reload
 
     local $_;
 
-    $this->{'object'} = Audio::FLAC::Header->new($this->{'filename'});
+    $this->{'object'} = Audio::FLAC::Header->new($this->{'fullpath'});
     unless($this->{'object'}) {
         die "Somehow, a non-FLAC file slipped through accept: " .
-            $this->{'filename'};
+            $this->{'fullpath'};
     }
     $this->{'tags'} = $this->{'object'}->tags();
     $this->{'mapping'} = {};

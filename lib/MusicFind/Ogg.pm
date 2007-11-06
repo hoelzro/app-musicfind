@@ -13,8 +13,9 @@ our @ISA = qw(MusicFind);
 
 sub new
 {
-    my ($class, $filename) = @_;
+    my ($class, $fullpath, $filename) = @_;
     my $this= MusicFind::new($class);
+    $this->{'fullpath'} = $fullpath;
     $this->{'filename'} = $filename;
     $this->reload();
     return $this;
@@ -93,10 +94,10 @@ sub reload
 
     local $_;
 
-    $this->{'object'} = Ogg::Vorbis::Header->load($this->{'filename'});
+    $this->{'object'} = Ogg::Vorbis::Header->load($this->{'fullpath'});
     unless($this->{'object'}) {
         die "Somehow, a non-Ogg Vorbis file slipped through accept: " .
-            $this->{'filename'};
+            $this->{'fullpath'};
     }
     $this->{'mapping'} = {};
     foreach ($this->{'object'}->comment_tags()) {
