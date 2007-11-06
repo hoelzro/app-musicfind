@@ -5,7 +5,15 @@ package MusicFind;
 use strict;
 use warnings;
 
-use constant DEBUG => 1;
+use constant DEBUG => 0;
+
+BEGIN
+{
+    if(DEBUG) {
+        require Data::Dumper;
+        Data::Dumper->import();
+    }
+}
 
 require Exporter;
 
@@ -28,7 +36,11 @@ sub rename
     my ($this, $newName) = @_;
     my $name = $this->filename;
     $newName = $this->substitute($newName);
-    rename $name, $newName or warn "Unable to rename $name to $newName: $!\n";
+    if(DEBUG) {
+        print "Renaming $name to $newName\n";
+    } else {
+        rename $name, $newName or warn "Unable to rename $name to $newName: $!\n";
+    }
     $this->{filename} = $newName;
     $this->dirty = 1;
 }
@@ -75,7 +87,11 @@ sub exec
     } @args;
 
     local $" = ' ';
-    return ! system("$programName @args");
+    if(DEBUG) {
+        print "Running $programName @args\n";
+    } else {
+        system("$programName @args");
+    }
 }
 
 sub new 

@@ -16,33 +16,23 @@ BEGIN
 }
 
 =pod
-Documentation:
 Convert that under __END__ into POD
 Man page?
 
---version: Print $VERSION and exit
---plugins: Print plugins found, load status, and reason for failure
-
-MusicFind::Ogg  - Ok!
-MusicFind::Flac - Ok!
-MusicFind::MP3  - Failed to load ($@)
-
-Finishing touches:
-Rigourously test MusicFind::*
-Test the module loader (make sure failed modules don't fuck it up)
+You need to chdir when renaming now! (Or change the constructor to accept
+filename and full path; I like this better)
 Shortcuts for -tag artist, etc (-artist=Foobar)
-Make NO volatile actions occur when DEBUG is on
-Uncomment loadDecoders and find
 Try to break up processCmdLine a bit
+Rigourously test MusicFind::*
 As usual, look for comments
-
-How 'bout writing those plugins?
 =cut
 
-
 my @decoders;
+my @failed; # Failed decoders
 my @targets; # Dirs to search
 my @actions; # What to do for each file
+
+our $VERSION = "1.0";
 
 sub glob_to_regex_string
 {
@@ -72,8 +62,12 @@ sub loadDecoders
             eval {
                 require "MusicFind/$module";
             };
-            # Print warning if a decoder failed to load?
-            push @decoders, "MusicFind/$module" unless($@);
+            $module =~ s/\.pm$//;
+            if($@) {
+                push @failed, ["MusicFind::$module", $@];
+            } else {
+                push @decoders, "MusicFind::$module" unless($@);
+            }
         }
     }
     unless(@decoders) {
@@ -239,6 +233,23 @@ sub processCmdLine
         '--' => sub {
             push @targets, @_[$i + 1 .. @_ - 1];
             $i = @_;
+        },
+        '-plugins' => sub {
+            local $_;
+
+            foreach (@decoders) {
+                print "$_: OK\n";
+            }
+            foreach (@failed) {
+                my ($module, $reason) = @$_;
+                chomp $reason;
+                print "$module: Failed ($reason)\n";
+            }
+            exit(0);
+        },
+        '-version' => sub {
+            print "musicfind version $VERSION\n";
+            exit(0);
         }
     );
 
@@ -366,12 +377,14 @@ sub findRoutine
     }
 }
 
+BEGIN
+{
+    loadDecoders;
+}
 processCmdLine(@ARGV);
-#loadDecoders;
-#find(\&findRoutine, @targets);
+find({ wanted => \&findRoutine, no_chdir => 1}, @targets);
 
 __END__
-
 musicfind [targets] [options]
 musicfind is a utility similar to the Unix command line utility find, only
 specialized for music files.  The targets are a list of files/directories to
@@ -420,6 +433,13 @@ Actions
     -exec Functions similar to find's -exec.  All arguments up to ; are included
           arguments to the given program.
     -help Print this message and exit.
+    -version Print the version of the program and exit.
+    -plugins Print the list of plugins which were loaded, and print their load
+             status.  If they failed, print the reason why.  If it's something
+             like "Couldn't find module something-something in (long list of
+             paths)", you'll need to install that something-something module in
+             order for that plugin to work.  All all plugins are listed, the
+             program exits.
 
 About Rename and Exec
 

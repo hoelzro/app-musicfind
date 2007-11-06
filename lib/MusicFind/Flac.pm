@@ -42,12 +42,20 @@ sub set_tag
         die "MusicFind::Flac::set_tag was passed an odd-length list of name" .
             "-value pairs\n";
     }
-    for(my $i = 0; $i < @nameValuePairs; $i += 2) {
-        my $lcName = lc $nameValuePairs[$i];
-        my $value = $nameValuePairs[$i + 1];
-        $this->{'tags'}{$this->{'mapping'}{$lcName} || $lcName} = $value;
+    if(DEBUG) {
+        for(my $i = 0; $i < @nameValuePairs; $i += 2) {
+            my ($name, $value) = @nameValuePairs[$i, $i + 1];
+
+            print "Changing tag $name to $value for ${\($this->filename())}\n";
+        }
+    } else {
+        for(my $i = 0; $i < @nameValuePairs; $i += 2) {
+            my $lcName = lc $nameValuePairs[$i];
+            my $value = $nameValuePairs[$i + 1];
+            $this->{'tags'}{$this->{'mapping'}{$lcName} || $lcName} = $value;
+        }
+        $this->{'object'}->write;
     }
-    $this->{'object'}->write;
 }
 
 sub delete_tag
@@ -55,15 +63,20 @@ sub delete_tag
     my ($this, @names) = @_;
     local $_;
 
-    foreach (@names) {
-        my $lcName = lc $_;
-        my $mapping = $this->{'mapping'}{$lcName};
-        if(defined $mapping) {
-            delete $this->{'tags'}{$mapping};
-            delete $this->{'mapping'}{$lcName};
+    if(DEBUG) {
+        local $" = ' ';
+        print "Deleting tags @names for ${\($this->filename())}\n";
+    } else {
+        foreach (@names) {
+            my $lcName = lc $_;
+            my $mapping = $this->{'mapping'}{$lcName};
+            if(defined $mapping) {
+                delete $this->{'tags'}{$mapping};
+                delete $this->{'mapping'}{$lcName};
+            }
         }
+        $this->{'object'}->write;
     }
-    $this->{'object'}->write;
 }
 
 sub tag
