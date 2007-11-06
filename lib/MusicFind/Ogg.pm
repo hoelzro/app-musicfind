@@ -36,6 +36,10 @@ sub set_tag
 {
     my ($this, @nameValuePairs) = @_;
 
+    if(@nameValuePairs % 2) {
+        die "MusicFind::Ogg::set_tag was passed an odd-length list of name" .
+            "-value pairs\n";
+    }
     for(my $i = 0; $i < @nameValuePairs; $i += 2) {
         $nameValuePairs[$i] = lc $nameValuePairs[$i];
         $this->{'object'}->clear_comments($this->{'mapping'}{$nameValuePairs[$i]});

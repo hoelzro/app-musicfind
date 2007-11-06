@@ -20,9 +20,17 @@ Documentation:
 Convert that under __END__ into POD
 Man page?
 
+--version: Print $VERSION and exit
+--plugins: Print plugins found, load status, and reason for failure
+
+MusicFind::Ogg  - Ok!
+MusicFind::Flac - Ok!
+MusicFind::MP3  - Failed to load ($@)
+
 Finishing touches:
-Test FLAC plugin; test set_tag with new tag on Ogg
+Rigourously test MusicFind::*
 Test the module loader (make sure failed modules don't fuck it up)
+Shortcuts for -tag artist, etc (-artist=Foobar)
 Make NO volatile actions occur when DEBUG is on
 Uncomment loadDecoders and find
 Try to break up processCmdLine a bit
@@ -358,8 +366,8 @@ sub findRoutine
     }
 }
 
-#loadDecoders;
 processCmdLine(@ARGV);
+#loadDecoders;
 #find(\&findRoutine, @targets);
 
 __END__

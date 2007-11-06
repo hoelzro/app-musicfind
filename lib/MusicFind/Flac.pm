@@ -38,8 +38,14 @@ sub set_tag
 {
     my ($this, @nameValuePairs) = @_;
 
+    if(@nameValuePairs % 2) {
+        die "MusicFind::Flac::set_tag was passed an odd-length list of name" .
+            "-value pairs\n";
+    }
     for(my $i = 0; $i < @nameValuePairs; $i += 2) {
-        $this->{'tags'}{$this->{'mapping'}{lc $nameValuePairs[$i]}} = $nameValuePairs[$i + 1];
+        my $lcName = lc $nameValuePairs[$i];
+        my $value = $nameValuePairs[$i + 1];
+        $this->{'tags'}{$this->{'mapping'}{$lcName} || $lcName} = $value;
     }
     $this->{'object'}->write;
 }
@@ -50,15 +56,21 @@ sub delete_tag
     local $_;
 
     foreach (@names) {
-        delete $this->{'tags'}{$this->{'mapping'}{lc $_}};
+        my $lcName = lc $_;
+        my $mapping = $this->{'mapping'}{$lcName};
+        if(defined $mapping) {
+            delete $this->{'tags'}{$mapping};
+            delete $this->{'mapping'}{$lcName};
+        }
     }
+    $this->{'object'}->write;
 }
 
 sub tag
 {
     my ($this, $name) = @_;
 
-    return $this->{'tags'}{$this->{'mapping'}{lc $name}} || '';
+    return $this->{'tags'}{$this->{'mapping'}{lc $name} || ''} || '';
 }
 
 sub filename
