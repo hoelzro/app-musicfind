@@ -36,6 +36,7 @@ sub rename
     my ($this, $newName) = @_;
     my $name = $this->{'filename'};
     $newName = $this->substitute($newName);
+    return if($name eq $newName);
     if(DEBUG) {
         print "Renaming $name to $newName\n";
     } else {

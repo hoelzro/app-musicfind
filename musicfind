@@ -16,12 +16,8 @@ BEGIN
 }
 
 =pod
-Convert that under __END__ into POD
-Man page?
-
-Try to break up processCmdLine a bit
 Rigourously test MusicFind::*
-As usual, look for comments
+Move new to MusicFind, and rename reload to load?
 =cut
 
 my @decoders;
@@ -43,28 +39,28 @@ sub glob_to_regex_string
 
 sub loadDecoders
 {
-    my $decoderDir;
     foreach my $inc (@INC) {
         if(-d "$inc/MusicFind") {
-            $decoderDir = "$inc/MusicFind";
-            last;
-        }
-    }
-    if($decoderDir) {
-        opendir my $handle, $decoderDir or die "Unable to open $decoderDir: $!\n";
-        my @modules = readdir $handle;
-        @modules = grep { /^[^.]/ && /\.pm$/ } @modules;
-        closedir $handle;
-        foreach my $module (@modules) {
-            eval {
-                require "MusicFind/$module";
-            };
-            $module =~ s/\.pm$//;
-            if($@) {
-                $@ =~ s/\n.*$//s;
-                push @failed, ["MusicFind::$module", $@];
-            } else {
-                push @decoders, "MusicFind::$module" unless($@);
+            my $decoderDir = "$inc/MusicFind";
+
+            opendir my $handle, $decoderDir or die "Unable to open $decoderDir: $!\n";
+            my @modules = readdir $handle;
+            @modules = grep { /^[^.]/ && /\.pm$/ } @modules;
+            closedir $handle;
+            foreach my $module (@modules) {
+                eval {
+                    require "MusicFind/$module";
+                };
+                $module =~ s/\.pm$//;
+                if($@) {
+                    $@ =~ s/\n.*$//s;
+                    push @failed, ["MusicFind::$module", $@];
+                } else {
+                    if(DEBUG) {
+                        print "MusicFind::$module loaded\n";
+                    }
+                    push @decoders, "MusicFind::$module" unless($@);
+                }
             }
         }
     }
@@ -91,6 +87,9 @@ sub processCmdLine
         $tagName = substr $tagName, 1, length($tagName) - 1;
         my $oldI = $i;
         $i = 0;
+        unless(defined $_[$oldI + 1]) {
+            die "-$tagName requires an argument\n";
+        }
         $dispatch{'-tag'}->('-tag', "$tagName=$_[$oldI + 1]");
         $i = $oldI + 1;
     };
@@ -381,7 +380,6 @@ PERL
         print "Actions: ", Dumper(\@actions);
         print "Targets: ", Dumper(\@targets);
         print "Filter string: $filterConditions";
-        exit(0);
     }
 }
 
@@ -390,8 +388,9 @@ sub loadMusicFile
     my ($fullpath, $filename) = @_;
     my $object;
 
+    return undef if(-d $fullpath);
     foreach my $dec (@decoders) {
-        if($dec->accept($filename)) {
+        if($dec->accept($fullpath)) {
             $object = $dec->new($fullpath, $filename);
             last if($object);
         }
@@ -459,6 +458,7 @@ better manipulate filters:
 
 All filters not chained together by -and or -or are tied together by implicit
 -ands.
+
 Actions
 
     -rename new_name Renames the file according to new_name, which is a
@@ -515,14 +515,14 @@ file format;  all of the work specific to a file type is done by the
 MusicFind::* modules.  Currently I've written plugins for Ogg Vorbis, MP3, and
 Flac;  if you'd like to contribute, MusicFind.pm documents what methods a plugin
 needs to implement and exactly what they're supposed to do.  Plugins should then
-be placed into MusicFind/ under your @INC.
+be placed into MusicFind/ under your @INC.  The -plugins option will let you
+know what plugins are available to you.
 
 Case Sensitivity
 
-For reasons I'd rather not explain, tag names in searches and other situations
-are case-insensitive, but tag values are case-sensitive in searches.  This is
-mainly because different tools tag an artist as Artist, artist, ARTIST, etc.  If
-you want a case-insensitive value search, use the -ignore-case option:
+Tag names in searches and other situations are case-insensitive, but tag values
+are case-sensitive in searches.  If you want a case-insensitive value
+search, use the -ignore-case option:
 
 musicfind . -tag artist="System of a Down" -ignore-case
 
