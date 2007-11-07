@@ -34,6 +34,8 @@ sub substitute
 sub rename
 {
     my ($this, $newName) = @_;
+    
+    $this->flush if($this->writeTags);
     my $name = $this->{'filename'};
     $newName = $this->substitute($newName);
     return if($name eq $newName);
@@ -75,7 +77,8 @@ sub exec
 {
     my ($this, $programName, @args) = @_;
 
-    $this->reload if($this->dirty);
+    $this->flush if($this->writeTags);
+    $this->load if($this->dirty);
 
     local $_;
     @args = map {
@@ -95,10 +98,18 @@ sub exec
     }
 }
 
-sub new 
+sub new
 {
-    my ($class, $filename) = @_;
-    return bless {dirty => undef, filename => $filename}, $class;
+    my ($class, $fullpath, $filename) = @_;
+    my $this = bless {dirty => undef, 
+                      writeTags => undef,
+                      filename => $filename,
+                      fullpath => $fullpath}, $class;
+    eval {
+        $this->load();
+    };
+    undef $this if($@);
+    return $this;
 }
 
 sub dirty : lvalue
@@ -107,9 +118,22 @@ sub dirty : lvalue
     $this->{dirty};
 }
 
+sub writeTags : lvalue
+{
+    my $this = shift;
+    $this->{writeTags};
+}
+
 sub accept
 {
     return 0;
+}
+
+sub DESTROY
+{
+    my $this = shift;
+
+    $this->flush() if($this->writeTags);
 }
 1;
 __END__
@@ -162,6 +186,16 @@ exec.  If the execution fails, the program will warn the user.
 A read-write property indicating that the location of the current file has
 changed.  Set to true after a rename action.  You shouldn't have to touch this.
 
+=item $object->writeTags
+
+A read-write property indicating that the file's tags have changed, and need to
+be written to file.
+
+=item $class->new($fullpath, $filename)
+
+This class method constructs a new object, and calls load() on that object.
+Returns the new object or undef on failure.
+
 =back
 
 =head2 Abstract methods
@@ -173,12 +207,6 @@ changed.  Set to true after a rename action.  You shouldn't have to touch this.
 This class method should return true only if the plugin represented by $class can
 handle the file specified by $filename.
 
-=item $class->new($fullpath, $filename)
-
-This class method should construct a new object, using the super class
-constructor.  C<$filename> should be passed to the super class constructor.
-This class method should return undef on failure.
-
 =item $object->channels()
 
 This method should return the number of audio channels in the file represented
@@ -187,11 +215,13 @@ by this MusicFind object.
 =item $object->set_tag(@name_value_pairs)
 
 This method should add/overwrite tags in the file;  items in @_ with an even
-index are tag names; odd indices are the new tag values.
+index are tag names; odd indices are the new tag values.  It should also set
+$object->writeTags to a true value.
 
 =item $object->delete_tag(@names)
 
-This method should remove all of the tags in @names from the file.
+This method should remove all of the tags in @names from the file.  It should
+also set $object->writeTags to a true value.
 
 =item $object->tag($name)
 
@@ -202,24 +232,20 @@ This method should return the value of the tag specified by $name.
 This method should return the filename of the file represented by this MusicFind
 object.  Note:  This returns the fullpath to the file.
 
-=item $object->reload()
+=item $object->load()
 
-This method should reload the wrapped object with the file given by
-$object->{fullpath}.  This gets called by exec if the current object is dirty.
-It's kind of like calling new, but the original object is used instead of a new
-blessed reference.  In fact, it might be a good idea to implement new as
-follows:
-
-sub new
-{
-    my ($class, $fullpath, $filename) = @_;
-    my $this= MusicFind::new($class, $filename);
-    $this->{'fullpath'} = $fullpath;
-    $this->reload();
-    return $this;
-}
+This method should load the wrapped object with the file given by
+$object->{fullpath}.  This gets called by exec if the current object is dirty,
+and also by new upon creation.  $object->dirty should be a false value after
+this method is called.
 
 See C<dirty>.
+
+=item $object->flush()
+
+This method should write the tags of the current file to disk.
+$object->writeTags should be a false value after this method is called.
+
 =back
 
 Feel free to look at the standard plugins I've written to see how a plugin

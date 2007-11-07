@@ -15,11 +15,6 @@ BEGIN
     }
 }
 
-=pod
-Rigourously test MusicFind::*
-Move new to MusicFind, and rename reload to load?
-=cut
-
 my @decoders;
 my @failed; # Failed decoders
 my @targets; # Dirs to search
@@ -512,7 +507,7 @@ Plugin Oriented Architecture
 
 Musicfind doesn't have any intrinsic support built in for any particular music
 file format;  all of the work specific to a file type is done by the
-MusicFind::* modules.  Currently I've written plugins for Ogg Vorbis, MP3, and
+MusicFind::* modules.  Currently I've written plugins for Ogg Vorbis and
 Flac;  if you'd like to contribute, MusicFind.pm documents what methods a plugin
 needs to implement and exactly what they're supposed to do.  Plugins should then
 be placed into MusicFind/ under your @INC.  The -plugins option will let you

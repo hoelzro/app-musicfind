@@ -21,19 +21,6 @@ BEGIN
 our $VERSION = 1.0;
 our @ISA = qw(MusicFind);
 
-sub new
-{
-    my ($class, $fullpath, $filename) = @_;
-    my $this= MusicFind::new($class);
-    $this->{'fullpath'} = $fullpath;
-    $this->{'filename'} = $filename;
-    eval {
-        $this->reload();
-    };
-    undef $this if($@);
-    return $this;
-}
-
 sub accept
 {
     my ($class, $filename) = @_;
@@ -68,7 +55,7 @@ sub set_tag
             my $value = $nameValuePairs[$i + 1];
             $this->{'tags'}{$this->{'mapping'}{$lcName} || $lcName} = $value;
         }
-        $this->{'object'}->write;
+        $this->writeTags = 1;
     }
 }
 
@@ -89,7 +76,7 @@ sub delete_tag
                 delete $this->{'mapping'}{$lcName};
             }
         }
-        $this->{'object'}->write;
+        $this->writeTags = 1;
     }
 }
 
@@ -106,7 +93,7 @@ sub filename
     return $this->{'fullpath'};
 }
 
-sub reload
+sub load
 {
     my $this = shift;
 
@@ -123,5 +110,12 @@ sub reload
         $this->{'mapping'}{lc $_} = $_;
     }
     $this->dirty = undef; # Not really needed, but nice
+}
+
+sub flush
+{
+    my $this = shift;
+
+    $this->{'object'}->write;
 }
 1;

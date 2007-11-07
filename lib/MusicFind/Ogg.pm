@@ -21,19 +21,6 @@ BEGIN
 our $VERSION = 1.0;
 our @ISA = qw(MusicFind);
 
-sub new
-{
-    my ($class, $fullpath, $filename) = @_;
-    my $this= MusicFind::new($class);
-    $this->{'fullpath'} = $fullpath;
-    $this->{'filename'} = $filename;
-    eval {
-        $this->reload();
-    };
-    undef $this if($@);
-    return $this;
-}
-
 sub accept
 {
     my ($class, $filename) = @_;
@@ -62,12 +49,14 @@ sub set_tag
     } else {
         for(my $i = 0; $i < @nameValuePairs; $i += 2) {
             $nameValuePairs[$i] = lc $nameValuePairs[$i];
-            $this->{'object'}->clear_comments($this->{'mapping'}{$nameValuePairs[$i]});
+            if(exists $this->{'mapping'}{$nameValuePairs[$i]}) {
+                $this->{'object'}->clear_comments($this->{'mapping'}{$nameValuePairs[$i]});
+            }
         }
         unless($this->{'object'}->add_comments(@nameValuePairs)) {
             die "An odd-length array was passed to add_comments in MusicFind::Ogg\n";
         }
-        $this->{'object'}->write_vorbis;
+        $this->writeTags = 1;
     }
 }
 
@@ -81,9 +70,12 @@ sub delete_tag
         print "Deleting tags @names for ${\($this->filename())}\n";
     } else {
         foreach (@names) {
-            $this->{'object'}->clear_comments($this->{'mapping'}{lc $_});
+            if(exists $this->{'mapping'}{lc $_}) {
+                $this->{'object'}->clear_comments($this->{'mapping'}{lc $_});
+                delete $this->{'mapping'}{lc $_};
+            }
         }
-        $this->{'object'}->write_vorbis;
+        $this->writeTags = 1;
     }
 }
 
@@ -101,7 +93,7 @@ sub filename
     return $this->{'object'}->path();
 }
 
-sub reload
+sub load
 {
     my $this = shift;
 
@@ -117,5 +109,12 @@ sub reload
         $this->{'mapping'}{lc $_} = $_;
     }
     $this->dirty = undef; # Not strictly necessary
+}
+
+sub flush
+{
+    my $this = shift;
+
+    $this->{'object'}->write_vorbis;
 }
 1;
