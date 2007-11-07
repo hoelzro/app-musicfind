@@ -16,6 +16,10 @@ BEGIN
 }
 
 # Verbose option?
+# Reorganize the help section
+# -cmd-file option: Specifies a file with musicfind commands, each on its own
+# line, and runs as if they were the provided arguments.  Would this be useful?
+# Special support for -genre (since it's coded as a number?)
 # Make sure modules are installed!
 
 my @decoders;
@@ -166,10 +170,12 @@ sub processCmdLine
             foreach my $tag (@tags) {
                 if($tag =~ /(.+)=(.+)/) {
                     my ($name, $value) = ($1, $2);
+                    $name =~ s/('|")/\\$1/g;
                     if($value =~ /^\/(.*)\/(i)?$/) {
                         my $ignore = $2 ? '(?i)' : '';
                         $value = "${ignore}$1";
                         $value =~ s/\//\\\//g;
+                        $value =~ s/('|")/\\$1/g;
                         eval {
                             qr/$value/;
                         };
@@ -178,6 +184,7 @@ sub processCmdLine
                         }
                     } else {
                         $value =~ s/\//\\\//g;
+                        $value =~ s/('|")/\\$1/g;
                         $value = glob_to_regex_string($value);
                     }
                     push @$action, $name, $value;
@@ -376,8 +383,6 @@ sub processCmdLine
             my @tags;
             for(my $i = 1; $i < @$filter; $i += 2) {
                 my ($name, $value) = (@$filter[$i], @$filter[$i + 1]);
-                $name =~ s/('|")/\\$1/g;
-                $value =~ s/('|")/\\$1/g;
                 push @tags, "\$file->tag(\'$name\') =~ /$value/o$ignoreCase";
             }
             $filter = join ' && ', @tags;

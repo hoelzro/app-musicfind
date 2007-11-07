@@ -40,7 +40,7 @@ sub rename
     $this->flush if($this->writeTags);
     my $name = $this->{'filename'};
     my $extension = '';
-    if($name =~ /(\..*)$/) {
+    if($name =~ /(\.[^.]*)$/) {
         $extension = $1;
     }
     $newName = $this->{'directory'} . '/' . $this->substitute($newName) . $extension;
