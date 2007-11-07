@@ -23,6 +23,8 @@ our @EXPORT = qw(DEBUG);
 our @EXPORT_OK = @EXPORT;
 our %EXPORT_TAGS = (':DEFAULT' => \@EXPORT);
 
+our $force;
+
 sub substitute
 {
     my ($this, $string) = @_;
@@ -46,6 +48,20 @@ sub rename
     if(DEBUG) {
         print "Renaming $name to $newName\n";
     } else {
+        if(-e $newName && ! $MusicFind::force) {
+            my $answer;
+
+            do {
+                if(defined $answer) {
+                    print "Please enter either \'yes\' or \'no\':\n";
+                } else {
+                    print "$newName already exists;  do you still want to rename $name to $newName? (yes/no)\n"
+                }
+                $answer = <STDIN>;
+                $answer = '' unless($answer eq 'yes' || $answer eq 'no');
+            } until($answer);
+            return if($answer eq 'no');
+        }
         rename $name, $newName or warn "Unable to rename $name to $newName: $!\n";
     }
     $this->{filename} = $newName;

@@ -15,9 +15,6 @@ BEGIN
     }
 }
 
-# Prevent from overwriting when the destination file exists on rename, allow
-# -force
-# Make non-wildcard stuff into /^...$/ so just equality is tested
 # Verbose option?
 # Make sure modules are installed!
 
@@ -35,7 +32,7 @@ sub glob_to_regex_string
     $glob =~ s/\*/.*/g;
     $glob =~ s/\?/./g;
 
-    return $glob;
+    return "^$glob\$";
 }
 
 sub loadDecoders
@@ -279,6 +276,9 @@ sub processCmdLine
             print "musicfind version $VERSION\n";
             exit(0);
         },
+        '-force' => sub {
+            $MusicFind::force = 1;
+        },
         '-artist' => $macroClosure,
         '-album' => $macroClosure,
         '-title' => $macroClosure,
@@ -465,7 +465,10 @@ Actions
 
     -rename new_name Renames the file according to new_name, which is a
                      printf-style format string.  The extension is automatically
-                     appended.  See below for details.
+                     appended.  If the destination filename already exists, the
+                     user is prompted for whether or not they wish to overwrite
+                     it.  You can override this with the -force option.  See
+                     below for details.
     -set-tag name=value(,name=value)* Sets the tags specified by the given names
                                       to the given values.
     -delete-tag name(,name)* Deletes the tags with the names specified.
@@ -481,6 +484,11 @@ Actions
              paths)", you'll need to install that something-something module in
              order for that plugin to work.  All all plugins are listed, the
              program exits.
+
+Other Options
+
+    -force See -rename.
+    -ignore-case See Case Sensitivity.
 
 Renaming Files
 
