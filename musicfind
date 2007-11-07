@@ -16,10 +16,7 @@ BEGIN
 }
 
 # Verbose option?
-# Escape ' and " in eval stuff
-# How to allow commas in tag values?
 # Make sure modules are installed!
-# Fill in missing info from CDDB!
 
 my @decoders;
 my @failed; # Failed decoders
@@ -36,6 +33,30 @@ sub glob_to_regex_string
     $glob =~ s/\?/./g;
 
     return "^$glob\$";
+}
+
+sub escapeSplit
+{
+    my $string = shift;
+
+    my @tokens;
+    my @pieces;
+
+    while($string =~ /(.*?)((?:\\\\)|(?:\\,)|,|$)/g) {
+        if($2 eq ',') {
+            push @pieces, $1;
+            push @tokens, join('', @pieces);
+            @pieces = ();
+        } elsif($2 eq '\\\\') {
+            push @pieces, "$1\\";
+        } elsif($2 eq '\\,') {
+            push @pieces, "$1,";
+        } else {
+            push @pieces, $1;
+        }
+    }
+    push @tokens, join('', @pieces);
+    return @tokens;
 }
 
 sub loadDecoders
@@ -92,6 +113,8 @@ sub processCmdLine
         unless(defined $_[$oldI + 1]) {
             die "-$tagName requires an argument\n";
         }
+        $_[$oldI + 1] =~ s/\\/\\\\/g;
+        $_[$oldI + 1] =~ s/,/\\,/g;
         $dispatch{'-tag'}->('-tag', "$tagName=$_[$oldI + 1]");
         $i = $oldI + 1;
     };
@@ -137,7 +160,7 @@ sub processCmdLine
             unless(defined $_[$i + 1]) {
                 die "-tag requires an argument\n";
             }
-            my @tags = split /,/, $_[++$i];
+            my @tags = escapeSplit($_[++$i]);
 
             my $action = ['check_tag'];
             foreach my $tag (@tags) {
@@ -171,7 +194,7 @@ sub processCmdLine
             unless(defined $_[$i + 1]) {
                 die "-set-tag requires an argument\n";
             }
-            my @tags = split /,/, $_[++$i];
+            my @tags = escapeSplit($_[++$i]);
 
             my $action = ['set_tag'];
             foreach my $tag (@tags) {
@@ -191,7 +214,7 @@ sub processCmdLine
             unless(defined $_[$i + 1]) {
                 die "-delete-tag requires an argument\n";
             }
-            my @tags = split /,/, $_[++$i];
+            my @tags = escapeSplit($_[++$i]);
             push @actions, ['delete_tag', @tags];
         },
         '-channels' => sub {
@@ -353,6 +376,8 @@ sub processCmdLine
             my @tags;
             for(my $i = 1; $i < @$filter; $i += 2) {
                 my ($name, $value) = (@$filter[$i], @$filter[$i + 1]);
+                $name =~ s/('|")/\\$1/g;
+                $value =~ s/('|")/\\$1/g;
                 push @tags, "\$file->tag(\'$name\') =~ /$value/o$ignoreCase";
             }
             $filter = join ' && ', @tags;
@@ -492,6 +517,22 @@ Other Options
 
     -force See -rename.
     -ignore-case See Case Sensitivity.
+
+Commas
+
+Since -tag, -set-tag, and -delete-tag all accept comma-separated values, there's
+a mechanism for inserting commas into the names/values of the your tags:  just
+escape it with a backslash, like this:
+
+musicfind . -tag title="A title\, with a comma in the middle" -> "A title, with
+    a comma in the middle"
+
+Double backslashes become single backslashes:
+
+musicfind . -tag title="Backslash \\ fever" -> "Backslash \ fever"
+
+-artist, -album, and all of the other shortcut options do NOT require you to
+escape commas or backslashes.
 
 Renaming Files
 
