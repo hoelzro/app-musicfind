@@ -5,7 +5,7 @@ package MusicFind;
 use strict;
 use warnings;
 
-use constant DEBUG => 1;
+use constant DEBUG => 0;
 
 BEGIN
 {
@@ -34,7 +34,7 @@ sub substitute
 sub rename
 {
     my ($this, $newName) = @_;
-    
+
     $this->flush if($this->writeTags);
     my $name = $this->{'filename'};
     $newName = $this->substitute($newName);
