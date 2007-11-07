@@ -51,13 +51,15 @@ sub rename
         if(-e $newName && ! $MusicFind::force) {
             my $answer;
 
+            local $| = 1;
             do {
                 if(defined $answer) {
-                    print "Please enter either \'yes\' or \'no\':\n";
+                    print "Please enter either \'yes\' or \'no\': ";
                 } else {
-                    print "$newName already exists;  do you still want to rename $name to $newName? (yes/no)\n"
+                    print "$newName already exists;  do you still want to rename $name to $newName? (yes/no) "
                 }
                 $answer = <STDIN>;
+                chomp $answer;
                 $answer = '' unless($answer eq 'yes' || $answer eq 'no');
             } until($answer);
             return if($answer eq 'no');
