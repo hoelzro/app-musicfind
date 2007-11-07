@@ -37,7 +37,11 @@ sub rename
 
     $this->flush if($this->writeTags);
     my $name = $this->{'filename'};
-    $newName = $this->substitute($newName);
+    my $extension = '';
+    if($name =~ /(\..*)$/) {
+        $extension = $1;
+    }
+    $newName = $this->{'directory'} . '/' . $this->substitute($newName) . $extension;
     return if($name eq $newName);
     if(DEBUG) {
         print "Renaming $name to $newName\n";
@@ -100,11 +104,11 @@ sub exec
 
 sub new
 {
-    my ($class, $fullpath, $filename) = @_;
+    my ($class, $filename, $filedir) = @_;
     my $this = bless {dirty => undef, 
                       writeTags => undef,
-                      filename => $filename,
-                      fullpath => $fullpath}, $class;
+                      directory => $filedir,
+                      filename => $filename}, $class;
     eval {
         $this->load();
     };
@@ -191,7 +195,7 @@ changed.  Set to true after a rename action.  You shouldn't have to touch this.
 A read-write property indicating that the file's tags have changed, and need to
 be written to file.
 
-=item $class->new($fullpath, $filename)
+=item $class->new($filename, $filedir)
 
 This class method constructs a new object, and calls load() on that object.
 Returns the new object or undef on failure.
@@ -230,12 +234,12 @@ This method should return the value of the tag specified by $name.
 =item $object->filename()
 
 This method should return the filename of the file represented by this MusicFind
-object.  Note:  This returns the fullpath to the file.
+object.  Note:  This returns the full path to the file.
 
 =item $object->load()
 
 This method should load the wrapped object with the file given by
-$object->{fullpath}.  This gets called by exec if the current object is dirty,
+$object->{filename}.  This gets called by exec if the current object is dirty,
 and also by new upon creation.  $object->dirty should be a false value after
 this method is called.
 

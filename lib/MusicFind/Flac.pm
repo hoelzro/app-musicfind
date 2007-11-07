@@ -74,9 +74,9 @@ sub delete_tag
             if(defined $mapping) {
                 delete $this->{'tags'}{$mapping};
                 delete $this->{'mapping'}{$lcName};
+                $this->writeTags = 1;
             }
         }
-        $this->writeTags = 1;
     }
 }
 
@@ -90,7 +90,7 @@ sub tag
 sub filename
 {
     my $this = shift;
-    return $this->{'fullpath'};
+    return $this->{'filename'};
 }
 
 sub load
@@ -99,10 +99,10 @@ sub load
 
     local $_;
 
-    $this->{'object'} = Audio::FLAC::Header->new($this->{'fullpath'});
+    $this->{'object'} = Audio::FLAC::Header->new($this->{'filename'});
     unless($this->{'object'}) {
         die "Somehow, a non-FLAC file slipped through accept: " .
-            $this->{'fullpath'};
+            $this->{'filename'};
     }
     $this->{'tags'} = $this->{'object'}->tags();
     $this->{'mapping'} = {};

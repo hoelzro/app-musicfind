@@ -15,6 +15,12 @@ BEGIN
     }
 }
 
+# Prevent from overwriting when the destination file exists on rename, allow
+# -force
+# Make non-wildcard stuff into /^...$/ so just equality is tested
+# Verbose option?
+# Make sure modules are installed!
+
 my @decoders;
 my @failed; # Failed decoders
 my @targets; # Dirs to search
@@ -57,6 +63,7 @@ sub loadDecoders
                     push @decoders, "MusicFind::$module" unless($@);
                 }
             }
+            last;
         }
     }
     unless(@decoders) {
@@ -380,13 +387,13 @@ PERL
 
 sub loadMusicFile
 {
-    my ($fullpath, $filename) = @_;
+    my ($filename, $filedir) = @_;
     my $object;
 
-    return undef if(-d $fullpath);
+    return undef if(-d $filename);
     foreach my $dec (@decoders) {
-        if($dec->accept($fullpath)) {
-            $object = $dec->new($fullpath, $filename);
+        if($dec->accept($filename)) {
+            $object = $dec->new($filename, $filedir);
             last if($object);
         }
     }
@@ -395,7 +402,7 @@ sub loadMusicFile
 
 sub findRoutine
 {
-    my $file = loadMusicFile($File::Find::name, $_);
+    my $file = loadMusicFile($File::Find::name, $File::Find::dir);
     if($file && applyFilters($file)) {
         foreach my $action (@actions) {
             my ($method, @args) = @$action;
@@ -457,7 +464,8 @@ All filters not chained together by -and or -or are tied together by implicit
 Actions
 
     -rename new_name Renames the file according to new_name, which is a
-                     printf-style format string.  See below for details.
+                     printf-style format string.  The extension is automatically
+                     appended.  See below for details.
     -set-tag name=value(,name=value)* Sets the tags specified by the given names
                                       to the given values.
     -delete-tag name(,name)* Deletes the tags with the names specified.
@@ -473,6 +481,11 @@ Actions
              paths)", you'll need to install that something-something module in
              order for that plugin to work.  All all plugins are listed, the
              program exits.
+
+Renaming Files
+
+The -rename action only allows you to rename a file in its current directory;
+if you wish to move a file to another directory, try -exec mv '{}' ... \;
 
 About Rename and Exec
 

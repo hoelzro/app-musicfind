@@ -73,9 +73,9 @@ sub delete_tag
             if(exists $this->{'mapping'}{lc $_}) {
                 $this->{'object'}->clear_comments($this->{'mapping'}{lc $_});
                 delete $this->{'mapping'}{lc $_};
+                $this->writeTags = 1;
             }
         }
-        $this->writeTags = 1;
     }
 }
 
@@ -99,10 +99,10 @@ sub load
 
     local $_;
 
-    $this->{'object'} = Ogg::Vorbis::Header->load($this->{'fullpath'});
+    $this->{'object'} = Ogg::Vorbis::Header->load($this->{'filename'});
     unless($this->{'object'}) {
         die "Somehow, a non-Ogg Vorbis file slipped through accept: " .
-            $this->{'fullpath'};
+            $this->{'filename'};
     }
     $this->{'mapping'} = {};
     foreach ($this->{'object'}->comment_tags()) {
