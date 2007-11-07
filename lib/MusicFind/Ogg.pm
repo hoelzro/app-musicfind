@@ -51,6 +51,7 @@ sub set_tag
             $nameValuePairs[$i] = lc $nameValuePairs[$i];
             if(exists $this->{'mapping'}{$nameValuePairs[$i]}) {
                 $this->{'object'}->clear_comments($this->{'mapping'}{$nameValuePairs[$i]});
+                $this->{'mapping'}{$nameValuePairs[$i]} = $nameValuePairs[$i];
             }
         }
         unless($this->{'object'}->add_comments(@nameValuePairs)) {
@@ -108,7 +109,7 @@ sub load
     foreach ($this->{'object'}->comment_tags()) {
         $this->{'mapping'}{lc $_} = $_;
     }
-    $this->dirty = undef; # Not strictly necessary
+    $this->dirty = undef;
 }
 
 sub flush
@@ -116,5 +117,6 @@ sub flush
     my $this = shift;
 
     $this->{'object'}->write_vorbis;
+    $this->writeTags = undef;
 }
 1;

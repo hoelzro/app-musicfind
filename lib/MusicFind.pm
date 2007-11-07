@@ -54,9 +54,9 @@ sub rename
             local $| = 1;
             do {
                 if(defined $answer) {
-                    print "Please enter either \'yes\' or \'no\': ";
+                    print STDERR "Please enter either \'yes\' or \'no\': ";
                 } else {
-                    print "$newName already exists;  do you still want to rename $name to $newName? (yes/no) "
+                    print STDERR "$newName already exists;  do you still want to rename $name to $newName? (yes/no) "
                 }
                 $answer = <STDIN>;
                 chomp $answer;

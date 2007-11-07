@@ -109,7 +109,7 @@ sub load
     foreach (keys %{$this->{'tags'}}) {
         $this->{'mapping'}{lc $_} = $_;
     }
-    $this->dirty = undef; # Not really needed, but nice
+    $this->dirty = undef;
 }
 
 sub flush
@@ -117,5 +117,6 @@ sub flush
     my $this = shift;
 
     $this->{'object'}->write;
+    $this->writeTags = undef;
 }
 1;

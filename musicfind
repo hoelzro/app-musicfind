@@ -16,7 +16,10 @@ BEGIN
 }
 
 # Verbose option?
+# Escape ' and " in eval stuff
+# How to allow commas in tag values?
 # Make sure modules are installed!
+# Fill in missing info from CDDB!
 
 my @decoders;
 my @failed; # Failed decoders
