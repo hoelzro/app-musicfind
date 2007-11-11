@@ -29,7 +29,7 @@ sub substitute
 {
     my ($this, $string) = @_;
 
-    $string =~ s/%(%|(\S*))/$1 eq '%' ? '%' : $this->tag($1)/ge;
+    $string =~ s/%(%|(\w*))/$1 eq '%' ? '%' : $this->tag($1)/ge;
     return $string;
 }
 
@@ -109,14 +109,13 @@ sub exec
         } else {
             $_ = $this->substitute($_);
         }
-        $_ = "\"$_\"";
     } @args;
 
-    local $" = ' ';
     if(DEBUG) {
+        local $" = ' ';
         print "Running $programName @args\n";
     } else {
-        system("$programName @args");
+        system($programName, @args);
     }
 }
 

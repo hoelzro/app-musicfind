@@ -20,6 +20,15 @@ BEGIN
 # -cmd-file option: Specifies a file with musicfind commands, each on its own
 # line, and runs as if they were the provided arguments.  Would this be useful?
 # Special support for -genre (since it's coded as a number?)
+# Unicode tags
+# Escape all regex metachars in glob_to_regex_string except [,]
+# Use a DB to cache data to optimize?
+# Include -artist, etc in %filterActions
+# Allow things like -tag album=%artist
+# Allow -eval -> executes arbitrary Perl on a tag
+# -set-artist, -set-album, etc
+# multiple -execs
+# rename problem with / (general problem with /)
 # Make sure modules are installed!
 
 my @decoders;
