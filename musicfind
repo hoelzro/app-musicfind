@@ -15,22 +15,6 @@ BEGIN
     }
 }
 
-# Verbose option?
-# Reorganize the help section
-# -cmd-file option: Specifies a file with musicfind commands, each on its own
-# line, and runs as if they were the provided arguments.  Would this be useful?
-# Special support for -genre (since it's coded as a number?)
-# Unicode tags
-# Escape all regex metachars in glob_to_regex_string except [,]
-# Use a DB to cache data to optimize?
-# Include -artist, etc in %filterActions
-# Allow things like -tag album=%artist
-# Allow -eval -> executes arbitrary Perl on a tag
-# -set-artist, -set-album, etc
-# multiple -execs
-# rename problem with / (general problem with /)
-# Make sure modules are installed!
-
 my @decoders;
 my @failed; # Failed decoders
 my @targets; # Dirs to search
@@ -42,10 +26,11 @@ sub glob_to_regex_string
 {
     my $glob = shift;
 
-    $glob =~ s/\*/.*/g;
-    $glob =~ s/\?/./g;
+    $glob =~ s/\*/\\E.*\\Q/g;
+    $glob =~ s/\?/\\E.\\Q/g;
+    $glob =~ s/(\[|\])/\\E$1\\Q/g;
 
-    return "^$glob\$";
+    return "^\\Q$glob\\E\$";
 }
 
 sub escapeSplit
@@ -108,7 +93,8 @@ sub loadDecoders
 sub processCmdLine
 {
     my $lastAction = '';
-    my %filterActions = ('-channels' => 1, '-tag' => 1, ')' => 1, '(' => 1);
+    my %filterActions = ('-channels' => 1, '-tag' => 1, ')' => 1, '(' => 1,
+        '-artist' => 1, '-album' => 1, '-title' => 1, '-tracknumber' => 1);
     my @filters;
     my $i;
     my $parenLevel = 0;
@@ -118,7 +104,7 @@ sub processCmdLine
     my %dispatch;
 
     # Shortcut for -artist, -album, -title, and -tracknumber
-    my $macroClosure = sub {
+    my $getShortcuts = sub {
         my $tagName = $_[$i];
         $tagName = substr $tagName, 1, length($tagName) - 1;
         my $oldI = $i;
@@ -129,6 +115,21 @@ sub processCmdLine
         $_[$oldI + 1] =~ s/\\/\\\\/g;
         $_[$oldI + 1] =~ s/,/\\,/g;
         $dispatch{'-tag'}->('-tag', "$tagName=$_[$oldI + 1]");
+        $i = $oldI + 1;
+    };
+
+    my $setShortcuts = sub {
+        my $tagName = $_[$i];
+        $tagName = substr $tagName, 1, length($tagName) - 1;
+        my $oldI = $i;
+        $i = 0;
+        unless(defined $_[$oldI + 1]) {
+            die "-$tagName requires an argument\n";
+        }
+        $_[$oldI + 1] =~ s/\\/\\\\/g;
+        $_[$oldI + 1] =~ s/,/\\,/g;
+        $tagName =~ s/^set-//;
+        $dispatch{'-set-tag'}->('-set-tag', "$tagName=$_[$oldI + 1]");
         $i = $oldI + 1;
     };
 
@@ -318,13 +319,17 @@ sub processCmdLine
             print "musicfind version $VERSION\n";
             exit(0);
         },
-        '-force' => sub {
-            $MusicFind::force = 1;
+        '-noconfirm' => sub {
+            $MusicFind::noconfirm = 1;
         },
-        '-artist' => $macroClosure,
-        '-album' => $macroClosure,
-        '-title' => $macroClosure,
-        '-tracknumber' => $macroClosure
+        '-artist' => $getShortcuts,
+        '-album' => $getShortcuts,
+        '-title' => $getShortcuts,
+        '-tracknumber' => $getShortcuts,
+        '-set-artist' => $setShortcuts,
+        '-set-album' => $setShortcuts,
+        '-set-title' => $setShortcuts,
+        '-set-tracknumber' => $setShortcuts
     );
 
     # Processes targets
@@ -509,7 +514,7 @@ Actions
                      printf-style format string.  The extension is automatically
                      appended.  If the destination filename already exists, the
                      user is prompted for whether or not they wish to overwrite
-                     it.  You can override this with the -force option.  See
+                     it.  You can override this with the -noconfirm option.  See
                      below for details.
     -set-tag name=value(,name=value)* Sets the tags specified by the given names
                                       to the given values.
@@ -529,7 +534,7 @@ Actions
 
 Other Options
 
-    -force See -rename.
+    -noconfirm See -rename.
     -ignore-case See Case Sensitivity.
 
 Commas

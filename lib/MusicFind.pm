@@ -23,13 +23,35 @@ our @EXPORT = qw(DEBUG);
 our @EXPORT_OK = @EXPORT;
 our %EXPORT_TAGS = (':DEFAULT' => \@EXPORT);
 
-our $force;
+our $noconfirm;
+
+sub promptYesNo
+{
+    my ($this, $prompt) = @_;
+    my $answer;
+
+    local $| = 1;
+    do {
+        if(defined $answer) {
+            print STDERR "Please enter either \'yes\' or \'no\': ";
+        } else {
+            print STDERR $prompt;
+        }
+        $answer = <STDIN>;
+        chomp $answer;
+        $answer = '' unless($answer eq 'yes' || $answer eq 'no');
+    } until($answer);
+    return $answer eq 'yes';
+}
 
 sub substitute
 {
     my ($this, $string) = @_;
 
     $string =~ s/%(%|(\w*))/$1 eq '%' ? '%' : $this->tag($1)/ge;
+    if($string =~ /\// && ! $MusicFind::noconfirm) {
+        undef $string unless($this->promptYesNo($this->filename . "'s tags contain one or more \'/\' characters; do you still want to go through with the rename/exec? "));
+    }
     return $string;
 }
 
@@ -43,26 +65,15 @@ sub rename
     if($name =~ /(\.[^.]*)$/) {
         $extension = $1;
     }
-    $newName = $this->{'directory'} . '/' . $this->substitute($newName) . $extension;
+    $newName = $this->substitute($newName);
+    return unless(defined $newName);
+    $newName = $this->{'directory'} . '/' . $newName . $extension;
     return if($name eq $newName);
     if(DEBUG) {
         print "Renaming $name to $newName\n";
     } else {
-        if(-e $newName && ! $MusicFind::force) {
-            my $answer;
-
-            local $| = 1;
-            do {
-                if(defined $answer) {
-                    print STDERR "Please enter either \'yes\' or \'no\': ";
-                } else {
-                    print STDERR "$newName already exists;  do you still want to rename $name to $newName? (yes/no) "
-                }
-                $answer = <STDIN>;
-                chomp $answer;
-                $answer = '' unless($answer eq 'yes' || $answer eq 'no');
-            } until($answer);
-            return if($answer eq 'no');
+        if(-e $newName && ! $MusicFind::noconfirm) {
+            return unless($this->promptYesNo("$newName already exists;  do you still want to rename $name to $newName? (yes/no) "));
         }
         rename $name, $newName or warn "Unable to rename $name to $newName: $!\n";
     }
@@ -75,6 +86,8 @@ sub _print
     my ($this, $format) = @_;
 
     if($format) {
+        # We don't care about /s in the substitution here
+        local $MusicFind::noconfirm = 1;
         print $this->substitute($format);
     } else {
         print $this->filename;
@@ -108,6 +121,7 @@ sub exec
             $_ = $this->filename;
         } else {
             $_ = $this->substitute($_);
+            return unless(defined $_);
         }
     } @args;
 
@@ -172,6 +186,10 @@ by those two methods.
 =head2 Implemented Routines
 
 =over
+
+=item $object->promptYesNo($prompt)
+
+Prompts the user for a yes/no answer.
 
 =item $object->substitute($format)
 

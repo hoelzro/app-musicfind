@@ -1,0 +1,7 @@
+* Verbose option?
+* Reorganize the help section
+* Unicode tags
+* Allow things like -tag album=%artist
+* Make sure modules are installed! (install optional modules)
+* Allow -eval -> executes arbitrary Perl on a tag
+* multiple -execs
