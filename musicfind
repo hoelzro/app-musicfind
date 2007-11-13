@@ -465,6 +465,29 @@ BEGIN
 processCmdLine(@ARGV);
 find({ wanted => \&findRoutine, no_chdir => 1}, @targets);
 
+=head1 NAME
+    musicfind - A command line utility like Unix find, only specific to music
+                files.
+
+=head1 DESCRIPTION
+    musicfind -help should provide you with all the information you need;
+    otherwise, check out MusicFind.pm's documentation.
+
+=head1 AUTHOR
+
+Robert Hoelz <hoelz@wisc.edu>
+
+=head1 COPYING
+
+Copyright (c) 2007, Robert Hoelz. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version. A copy of this license is included with this module (LICENSE.GPL).
+
+=cut
+
 __END__
 musicfind [targets] [options]
 musicfind is a utility similar to the Unix command line utility find, only
@@ -563,8 +586,7 @@ About Rename and Exec
 The -rename and -exec actions, due to their volatile nature, are automatically
 sent to the end of the action list, and they may only occur once.  However, this
 shouldn't really matter, since there's no point in renaming a file twice in one
-execution, and exec allows you to string together commands anyway.  Just keep in
-mind that {} will only interpolate to the original filename.
+execution.  Just keep in mind that {} will only interpolate to the original filename.
 
 Rename/Print Format
 

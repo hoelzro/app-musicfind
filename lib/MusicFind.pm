@@ -50,7 +50,7 @@ sub substitute
 
     $string =~ s/%(%|(\w*))/$1 eq '%' ? '%' : $this->tag($1)/ge;
     if($string =~ /\// && ! $MusicFind::noconfirm) {
-        undef $string unless($this->promptYesNo($this->filename . "'s tags contain one or more \'/\' characters; do you still want to go through with the rename/exec? "));
+        undef $string unless($this->promptYesNo($this->filename . "'s tags contain one or more \'/\' characters; do you still want to go through with the rename/exec? (yes/no) "));
     }
     return $string;
 }
