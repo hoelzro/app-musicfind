@@ -554,7 +554,7 @@ Actions
              status.  If they failed, print the reason why.  If it's something
              like "Couldn't find module something-something in (long list of
              paths)", you'll need to install that something-something module in
-             order for that plugin to work.  All all plugins are listed, the
+             order for that plugin to work.  After all plugins are listed, the
              program exits.
 
 Other Options
