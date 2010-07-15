@@ -635,7 +635,6 @@ of a regex will do the same thing as -ignore-case, but only for that regex!
 Bugs and Ideas
 
 If you have found any bugs or have any great ideas for musicfind, please send
-them to me (patches are nice!) at rob@hoelz.ro.  I'll be making my darcs
-repository for the project public soon, so I'll post that in here when I can.
+them to me (patches are nice!) at rob@hoelz.ro.
 
 Enjoy!
