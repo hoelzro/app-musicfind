@@ -466,10 +466,12 @@ processCmdLine(@ARGV);
 find({ wanted => \&findRoutine, no_chdir => 1}, @targets);
 
 =head1 NAME
+
     musicfind - A command line utility like Unix find, only specific to music
                 files.
 
 =head1 DESCRIPTION
+
     musicfind -help should provide you with all the information you need;
     otherwise, check out MusicFind.pm's documentation.
 
