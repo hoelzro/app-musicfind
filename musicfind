@@ -419,7 +419,7 @@ sub processCmdLine
     }
 PERL
     if($@) {
-        die "An eval error occured for condition string \"$filterConditions\": $!.\nPlease send this message along with the arguments you used to hoelz\@wisc.edu so the developer can fix the issue\n";
+        die "An eval error occured for condition string \"$filterConditions\": $!.\nPlease send this message along with the arguments you used to rob\@hoelz.ro so the developer can fix the issue\n";
     }
 
     # Debugging stuff
@@ -475,11 +475,11 @@ find({ wanted => \&findRoutine, no_chdir => 1}, @targets);
 
 =head1 AUTHOR
 
-Robert Hoelz <hoelz@wisc.edu>
+Robert Hoelz <rob@hoelz.ro>
 
 =head1 COPYING
 
-Copyright (c) 2007, Robert Hoelz. All Rights Reserved.
+Copyright (c) 2007-2010, Robert Hoelz. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -633,7 +633,7 @@ of a regex will do the same thing as -ignore-case, but only for that regex!
 Bugs and Ideas
 
 If you have found any bugs or have any great ideas for musicfind, please send
-them to me (patches are nice!) at hoelz@wisc.edu.  I'll be making my darcs
+them to me (patches are nice!) at rob@hoelz.ro.  I'll be making my darcs
 repository for the project public soon, so I'll post that in here when I can.
 
 Enjoy!
